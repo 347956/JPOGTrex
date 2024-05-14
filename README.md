@@ -6,6 +6,11 @@ A video Tutorial can be found at https://www.youtube.com/watch?v=NZ_F8wDczzM
 > [!NOTE]
 > The wiki page might be slightly out of date regarding how the JPOGTrex prefab is constructed.
 
+
+## Note to self
+Don't forget to replace the build dll into: "UnityProject\Assets\Plugins"
+
+
 ### Dependencies
 
 You need to install the following dependencies for this mod to work in the game (these are not installed by the setup script):

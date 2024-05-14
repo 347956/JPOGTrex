@@ -1,0 +1,102 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65d3fcb39dd67306e9bb17a603308070, type: 3}
+  m_Name: JPOGTrexObj
+  m_EditorClassIdentifier: 
+  enemyName: JPOGTrex
+  probabilityCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spawningDisabled: 0
+  numberSpawnedFalloff:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: -1.0000076
+      outSlope: -1.0000076
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: -0.0000076293945
+      inSlope: -1.0000076
+      outSlope: -1.0000076
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  useNumberSpawnedFalloff: 0
+  spawnInGroupsOf: 0
+  requireNestObjectsToSpawn: 0
+  enemyPrefab: {fileID: 2584373661409062497, guid: 3784512623d77be4392f4871c92b8953,
+    type: 3}
+  PowerLevel: 2
+  MaxCount: 2
+  numberSpawned: 1
+  nestsSpawned: 0
+  isOutsideEnemy: 1
+  isDaytimeEnemy: 0
+  normalizedTimeInDayToLeave: 0.5
+  stunTimeMultiplier: 4
+  doorSpeedMultiplier: 0.25
+  stunGameDifficultyMultiplier: 1
+  canBeStunned: 1
+  canDie: 1
+  destroyOnDeath: 0
+  canSeeThroughFog: 0
+  pushPlayerForce: 2
+  pushPlayerDistance: 3
+  SizeLimit: 0
+  timeToPlayAudio: 0
+  loudnessMultiplier: 0
+  overrideVentSFX: {fileID: 0}
+  nestSpawnPrefab: {fileID: 0}
+  nestSpawnPrefabWidth: 0
+  useMinEnemyThresholdForNest: 0
+  minEnemiesToSpawnNest: 0
+  hitBodySFX: {fileID: 0}
+  hitEnemyVoiceSFX: {fileID: 8300000, guid: bc130130e9548b54bad1fa02b16293a7, type: 3}
+  deathSFX: {fileID: 8300000, guid: c00af8b2d751a9c42864357b42983036, type: 3}
+  stunSFX: {fileID: 8300000, guid: bc130130e9548b54bad1fa02b16293a7, type: 3}
+  miscAnimations: []
+  audioClips:
+  - {fileID: 8300000, guid: deade18b48ae5d14ea38d95b0271c417, type: 3}
+  - {fileID: 8300000, guid: f47e02c53b6abe24a83f707ef9b884e2, type: 3}
+  - {fileID: 8300000, guid: 76e41232ca3d5a74e913832812b7aea2, type: 3}

@@ -25,10 +25,20 @@ namespace JPOGTrex {
         Vector3 StalkPos;
         System.Random enemyRandom = null!;
         bool isDeadAnimationDone;
-        enum State {
+        bool isHungry;
+        float defaultSpeed = 4f;
+enum State
+        {
             SearchingForPlayer,
-            StickingInFrontOfPlayer,
-            HeadSwingAttackInProgress,
+            ChasingPlayer,
+            AttackingEntity,
+            GrabPlayer,
+            GrabbedPlayer,
+            GrabbingPlayer,
+            EatingPlayer,
+            Searching,
+            Idle,
+            Eating
         }
 
         [Conditional("DEBUG")]
@@ -40,7 +50,7 @@ namespace JPOGTrex {
             base.Start();
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
-            creatureAnimator.SetTrigger("startWalk");
+            DoAnimationClientRpc("startWalk");
             timeSinceNewRandPos = 0;
             positionRandomness = new Vector3(0, 0, 0);
             enemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
@@ -68,7 +78,7 @@ namespace JPOGTrex {
             timeSinceNewRandPos += Time.deltaTime;
             
             var state = currentBehaviourStateIndex;
-            if(targetPlayer != null && (state == (int)State.StickingInFrontOfPlayer || state == (int)State.HeadSwingAttackInProgress)){
+            if(targetPlayer != null && (state == (int)State.GrabPlayer || state == (int)State.GrabbedPlayer || state == (int)State.GrabbingPlayer)){
                 turnCompass.LookAt(targetPlayer.gameplayCamera.transform.position);
                 transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(new Vector3(0f, turnCompass.eulerAngles.y, 0f)), 4f * Time.deltaTime);
             }
@@ -85,33 +95,116 @@ namespace JPOGTrex {
                 return;
             };
 
-            switch(currentBehaviourStateIndex) {
+            switch (currentBehaviourStateIndex)
+            {
+
                 case (int)State.SearchingForPlayer:
-                    agent.speed = 3f;
-                    if (FoundClosestPlayerInRange(25f, 3f)){
+                    agent.speed = 0f;
+                    DoAnimationClientRpc("startSearch");
+                    if (FoundClosestPlayerInRange(25f, 3f))
+                    {
                         LogIfDebugBuild("Start Target Player");
                         StopSearch(currentSearch);
-                        SwitchToBehaviourClientRpc((int)State.StickingInFrontOfPlayer);
+                        DoAnimationClientRpc("foundPlayer");
+                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        return;
                     }
                     break;
 
-                case (int)State.StickingInFrontOfPlayer:
-                    agent.speed = 5f;
+                case (int)State.ChasingPlayer:
+                    agent.speed = 0f;
+                    int chaseAnimation = enemyRandom.Next(4);
+                    if (chaseAnimation == 1 ){
+                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
+                    }
+                    else if( chaseAnimation == 2)
+                    {
+                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
+                    }
+                    else if( chaseAnimation == 3)
+                    {
+                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
+                    }
+                    else
+                    {
+                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
+                    }
+                    agent.speed = defaultSpeed * 2f;
+                    DoAnimationClientRpc("inChase");
                     // Keep targeting closest player, unless they are over 20 units away and we can't see them.
-                    if (!TargetClosestPlayerInAnyCase() || (Vector3.Distance(transform.position, targetPlayer.transform.position) > 20 && !CheckLineOfSightForPosition(targetPlayer.transform.position))){
+                    if (!TargetClosestPlayerInAnyCase() || (Vector3.Distance(transform.position, targetPlayer.transform.position) > 20 && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
+                    {
                         LogIfDebugBuild("Stop Target Player");
                         StartSearch(transform.position);
                         SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                         return;
                     }
-                    StickingInFrontOfPlayer();
+                    SetDestinationToPosition(targetPlayer.transform.position);
                     break;
 
-                case (int)State.HeadSwingAttackInProgress:
-                    // We don't care about doing anything here
+                case (int)State.AttackingEntity:
+                    DoAnimationClientRpc("attackEnemy");
                     break;
-                    
+
+                case (int)State.GrabPlayer:
+                    agent.speed = defaultSpeed / 2;
+                    //Logic To check if grab connected
+                    bool hitConnect = true;
+                    DoAnimationClientRpc("grabPlayer");
+                    if (hitConnect != false)
+                    {
+                        SwitchToBehaviourClientRpc((int)State.GrabbedPlayer);
+                    }
+                    break;
+
+                case (int)State.GrabbedPlayer:
+                    DoAnimationClientRpc("grabbedPlayer");
+
+                    SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
+                    break;
+
+                case (int)State.GrabbingPlayer:
+                    DoAnimationClientRpc("grabbingPlayer");
+                    //If T-rex is hungry, it should eat the target (like Giant), otherwise drop it (like blind dog)
+                    if (isHungry)
+                    {
+                        SwitchToBehaviourClientRpc((int)State.EatingPlayer);
+                        break;
+                    }
+                    else
+                    {
+                        SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
+                        break;
+                    }
+
+                case (int)State.EatingPlayer:
+                DoAnimationClientRpc("eatingPlauer");
+                    break;
+
+                case (int)State.Idle:
+                    int rndIdle = enemyRandom.Next(4);
+                    if (rndIdle == 1)
+                    {
+                        DoAnimationClientRpc("breathingIdle");
+                    }
+                    else if (rndIdle == 2)
+                    {
+                        DoAnimationClientRpc("sneezingIdle");
+                    }
+                    else if (rndIdle == 3)
+                    {
+                        DoAnimationClientRpc("eatingIdle01");
+                        SwitchToBehaviourClientRpc((int)State.Eating);
+                    }
+                    break;
+
+                case (int)State.Eating:
+                    DoAnimationClientRpc("eatingIdle02");
+                    SwitchToBehaviourClientRpc((int)State.Eating);
+                    break;
+
                 default:
+                    DoAnimationClientRpc("startWalk");
                     LogIfDebugBuild("This Behavior State doesn't exist!");
                     break;
             }
@@ -154,7 +247,7 @@ namespace JPOGTrex {
                 timeSinceNewRandPos = 0;
                 if(enemyRandom.Next(0, 5) == 0){
                     // Attack
-                    StartCoroutine(SwingAttack());
+                    StartCoroutine(GrabAttack());
                 }
                 else{
                     // Go in front of player
@@ -165,8 +258,8 @@ namespace JPOGTrex {
             }
         }
 
-        IEnumerator SwingAttack() {
-            SwitchToBehaviourClientRpc((int)State.HeadSwingAttackInProgress);
+        IEnumerator GrabAttack() {
+            SwitchToBehaviourClientRpc((int)State.GrabPlayer);
             StalkPos = targetPlayer.transform.position;
             SetDestinationToPosition(StalkPos);
             yield return new WaitForSeconds(0.5f);
@@ -177,10 +270,11 @@ namespace JPOGTrex {
             yield return new WaitForSeconds(0.35f);
             SwingAttackHitClientRpc();
             // In case the player has already gone away, we just yield break (basically same as return, but for IEnumerator)
-            if(currentBehaviourStateIndex != (int)State.HeadSwingAttackInProgress){
+            if(currentBehaviourStateIndex != (int)State.GrabbedPlayer)
+            {
                 yield break;
             }
-            SwitchToBehaviourClientRpc((int)State.StickingInFrontOfPlayer);
+            SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
         }
 
         public override void OnCollideWithPlayer(Collider other) {
@@ -208,7 +302,7 @@ namespace JPOGTrex {
                     // KillEnemy() will also attempt to call creatureAnimator.SetTrigger("KillEnemy"),
                     // so we don't need to call a death animation ourselves.
 
-                    StopCoroutine(SwingAttack());
+                    StopCoroutine(GrabAttack());
                     // We need to stop our search coroutine, because the game does not do that by default.
                     StopCoroutine(searchCoroutine);
                     KillEnemyOnOwnerClient();

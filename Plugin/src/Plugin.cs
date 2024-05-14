@@ -35,7 +35,7 @@ namespace JPOGTrex {
             }
 
             // We load our assets from our asset bundle. Remember to rename them both here and in our Unity project.
-            var JPOGTrex = ModAssets.LoadAsset<EnemyType>("JPOGTrex");
+            var JPOGTrex = ModAssets.LoadAsset<EnemyType>("JPOGTrexObj");
             var JPOGTrexTN = ModAssets.LoadAsset<TerminalNode>("JPOGTrexTN");
             var JPOGTrexTK = ModAssets.LoadAsset<TerminalKeyword>("JPOGTrexTK");
 
