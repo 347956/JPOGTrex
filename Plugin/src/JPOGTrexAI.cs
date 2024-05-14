@@ -4,14 +4,14 @@ using GameNetcodeStuff;
 using Unity.Netcode;
 using UnityEngine;
 
-namespace ExampleEnemy {
+namespace JPOGTrex {
 
-    // You may be wondering, how does the Example Enemy know it is from class ExampleEnemyAI?
+    // You may be wondering, how does the JPOGTrex know it is from class JPOGTrexAI?
     // Well, we give it a reference to to this class in the Unity project where we make the asset bundle.
     // Asset bundles cannot contain scripts, so our script lives here. It is important to get the
     // reference right, or else it will not find this file. See the guide for more information.
 
-    class ExampleEnemyAI : EnemyAI
+    class JPOGTrexAI : EnemyAI
     {
         // We set these in our Asset Bundle, so we can disable warning CS0649:
         // Field 'field' is never assigned to, and will always have its default value 'value'
@@ -38,7 +38,7 @@ namespace ExampleEnemy {
 
         public override void Start() {
             base.Start();
-            LogIfDebugBuild("Example Enemy Spawned");
+            LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
             creatureAnimator.SetTrigger("startWalk");
             timeSinceNewRandPos = 0;
@@ -190,7 +190,7 @@ namespace ExampleEnemy {
             PlayerControllerB playerControllerB = MeetsStandardPlayerCollisionConditions(other);
             if (playerControllerB != null)
             {
-                LogIfDebugBuild("Example Enemy Collision with Player!");
+                LogIfDebugBuild("JPOGTrex Collision with Player!");
                 timeSinceHittingLocalPlayer = 0f;
                 playerControllerB.DamagePlayer(20);
             }

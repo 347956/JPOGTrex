@@ -1,9 +1,9 @@
-# Example Enemy
+# JPOGTrex
 
-This repository contains the full source code for the Example Enemy for Lethal Company, including the Unity project which can be used to build its asset bundle. The guide part of this project can be found at https://lethal.wiki/dev/apis/lethallib/custom-enemies/overview.
+This repository contains the full source code for the JPOGTrex for Lethal Company, including the Unity project which can be used to build its asset bundle. The guide part of this project can be found at https://lethal.wiki/dev/apis/lethallib/custom-enemies/overview.
 
 > [!NOTE]
-> The wiki page might be slightly out of date regarding how the Example Enemy prefab is constructed.
+> The wiki page might be slightly out of date regarding how the JPOGTrex prefab is constructed.
 
 ## Setting Up The Project For Development
 
@@ -66,19 +66,19 @@ That should be all the required setup for this project, and now you can move to 
 
 ### Thunderstore Packages
 
-We have configured [ExampleEnemy.csproj](/Plugin/ExampleEnemy.csproj) to build a Thunderstore package to [/Plugin/Thunderstore/Packages/](/Plugin/Thunderstore/Packages/) using [tcli](https://github.com/thunderstore-io/thunderstore-cli/wiki) each time we make a release build of our mod. A release build can be done for example from the command-line like this: `dotnet build -c release`. This will use configuration options from [thunderstore.toml](/Plugin/Thunderstore/thunderstore.toml), so configure it for your own mod! Do note that we have not included a way to upload your mod to thunderstore via tcli in this project.
+We have configured [JPOGTrex.csproj](/Plugin/JPOGTrex.csproj) to build a Thunderstore package to [/Plugin/Thunderstore/Packages/](/Plugin/Thunderstore/Packages/) using [tcli](https://github.com/thunderstore-io/thunderstore-cli/wiki) each time we make a release build of our mod. A release build can be done for example from the command-line like this: `dotnet build -c release`. This will use configuration options from [thunderstore.toml](/Plugin/Thunderstore/thunderstore.toml), so configure it for your own mod! Do note that we have not included a way to upload your mod to thunderstore via tcli in this project.
 
 ### Renaming The Mod
 
 Renaming a mod can easily break things if you don't update every instance of it. If you want to rename your mod, these are some of the things you need to worry about:
 - rename `csproj` files
 - rename solution file, with its references to your new csproj filename
-- When renaming [ExampleEnemyAI.cs](/Plugin/src/ExampleEnemyAI.cs) and its class, make sure to compile your mod DLL and place it in `./UnityProject/Assets/Plugins` and add your new AI class as a component to your enemy prefab. If the class doesn't appear as an option, make sure your mod DLL doesn't have any errors in the Unity editor console. If your mod depends on other mods, also add their DLL files to the `Plugins` folder.
+- When renaming [JPOGTrexAI.cs](/Plugin/src/JPOGTrexAI.cs) and its class, make sure to compile your mod DLL and place it in `./UnityProject/Assets/Plugins` and add your new AI class as a component to your enemy prefab. If the class doesn't appear as an option, make sure your mod DLL doesn't have any errors in the Unity editor console. If your mod depends on other mods, also add their DLL files to the `Plugins` folder.
     - You might have to reapply all your configuration settings for the AI script. You need to be very careful to not miss a configuration option, as missing something can break the enemy's behavior or lead to errors.
 - If your IDE complains about invalid references, try restarting it. If this does not fix it, you probably have forgotten to rename something.
 
 > [!TIP]  
-> You can use `Ctrl` + `Shift`+ `F` to search every file in both Visual Studio and Visual Studio Code. This can for example help you find every instance of `ExampleEnemy` inside files in the whole project. Do note however that this does not apply to filenames.  
+> You can use `Ctrl` + `Shift`+ `F` to search every file in both Visual Studio and Visual Studio Code. This can for example help you find every instance of `JPOGTrex` inside files in the whole project. Do note however that this does not apply to filenames.  
 > In Visual Studio, you can use `Ctrl` + `,` to search files by name. In Visual Studio Code you can use `Ctrl` + `P` to do the same.
 
 ## Credits
@@ -86,7 +86,7 @@ Renaming a mod can easily break things if you don't update every instance of it.
 [EvaisaDev](https://github.com/EvaisaDev) - [LethalLib](https://github.com/EvaisaDev/LethalLib)  
 [Lordfirespeed](https://github.com/Lordfirespeed) - reference tcli usage in LethalLib  
 [Xilophor](https://github.com/Xilophor) - csproj files taken from Xilo's [mod templates](https://github.com/Xilophor/Lethal-Company-Mod-Templates)  
-[XuuXiao](https://github.com/XuuXiao/) - porting LC-ExampleEnemy for LC v50  
+[XuuXiao](https://github.com/XuuXiao/) - porting LC-JPOGTrex for LC v50  
 [nomnomab](https://github.com/nomnomab) - [Lethal Company Project Patcher](https://github.com/nomnomab/lc-project-patcher) - used for the Unity Project  
 [AlbinoGeek](https://github.com/AlbinoGeek) - issue template  
 Melavex - suggestions and feedback on this project  
