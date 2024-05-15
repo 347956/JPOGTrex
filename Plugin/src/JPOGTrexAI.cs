@@ -50,7 +50,6 @@ enum State
             base.Start();
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
-            creatureAnimator.SetTrigger("");
             SetWalkingAnimation(0f);
             timeSinceNewRandPos = 0;
             positionRandomness = new Vector3(0, 0, 0);
@@ -101,8 +100,8 @@ enum State
             {
 
                 case (int)State.SearchingForPlayer:
-                    agent.speed = 0f;
-                    SetWalkingAnimation(defaultSpeed);
+                    agent.speed = 0.1f;
+                    SetWalkingAnimation(agent.speed);
                     DoAnimationClientRpc("startSearch");
                     if (FoundClosestPlayerInRange(25f, 3f))
                     {
@@ -115,8 +114,8 @@ enum State
                     break;
 
                 case (int)State.ChasingPlayer:
-                    agent.speed = 0f;
-                    SetWalkingAnimation(defaultSpeed);
+                    agent.speed = 0.1f;
+                    SetWalkingAnimation(agent.speed);
                     int chaseAnimationNmbr = enemyRandom.Next(4);
                     if (chaseAnimationNmbr == 1 ){
                         LogIfDebugBuild($"Current State = [{State.ChasingPlayer}] beginning animation: \"beginChase01\".");
@@ -137,7 +136,7 @@ enum State
                         DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
                     }
                     agent.speed = defaultSpeed * 2f;
-                    SetWalkingAnimation(defaultSpeed);
+                    SetWalkingAnimation(agent.speed);
                     LogIfDebugBuild($"Current State = [{State.ChasingPlayer}] beginning animation: \"chasingTarget\".");
                     DoAnimationClientRpc("chasingTarget");
                     // Keep targeting closest player, unless they are over 20 units away and we can't see them.
@@ -158,7 +157,7 @@ enum State
 
                 case (int)State.GrabPlayer:
                     agent.speed = defaultSpeed / 2;
-                    SetWalkingAnimation(defaultSpeed);
+                    SetWalkingAnimation(agent.speed);
                     LogIfDebugBuild($"Current State = [{State.GrabPlayer}] beginning animation: \"grabPlayer\".");
                     //Logic To check if grab connected
                     bool hitConnect = true;
@@ -217,6 +216,11 @@ enum State
                     LogIfDebugBuild($"Current State = [{State.Eating}] beginning animation: \"eatingIdle02\".");
                     DoAnimationClientRpc("eatingIdle02");
                     SwitchToBehaviourClientRpc((int)State.Eating);
+                    break;
+
+
+                case (int)State.Searching:
+                    LogIfDebugBuild($"Current State = [{State.Eating}] beginning animation: \"eatingIdle02\".");
                     break;
 
                 default:
