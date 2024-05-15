@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 2390739449
+CRC: 3178738412
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 006e50cef189fecdce52d0ba9bfccb3e
+    Hash: ac97fb7321123c8efec3ab23b2d3ae1f
   TypeTreeHash:
     serializedVersion: 2
-    Hash: 66e3f0e266f45a0a9ee2f1a9437d9aaf
+    Hash: 38a552e1bf37170bba6ffc635c62bdff
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 006e50cef189fecdce52d0ba9bfccb3e
+    Hash: ac97fb7321123c8efec3ab23b2d3ae1f
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -64,8 +64,6 @@ ClassTypes:
   Script: {instanceID: 0}
 - Class: 195
   Script: {instanceID: 0}
-- Class: 205
-  Script: {instanceID: 0}
 - Class: 241
   Script: {instanceID: 0}
 - Class: 243
@@ -90,11 +88,10 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Materials/MapDotRed.mat
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Snz_Lp01.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_Swal_Ed11.anim
-- Assets/ModAssets/JPOGTrex/Audio/TrexGrowl02.wav
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_St11.anim
+- Assets/ModAssets/JPOGTrex/Audio/TrexGrowl02.wav
 - Assets/ModAssets/JPOGTrex/Audio/TrexStep.wav
 - Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrexTK.asset
-- Assets/ModAssets/JPOGTrex/Models/trex_md.fbx
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Call_F01.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_A11.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_Shake_Lp10.anim
@@ -105,17 +102,17 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Audio/TrexGrowl01.wav
 - Assets/ModAssets/JPOGTrex/Models/JPOG-TrexV2.fbx
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Chew_lp01.anim
-- Assets/ModAssets/JPOGTrex/JPOG-TrexV2.prefab
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Walk_lp00.anim
+- Assets/ModAssets/JPOGTrex/Animations/TRex_Hit_Lt01.anim
 - Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrex Video.webm
 - Assets/ModAssets/JPOGTrex/Materials/Trex.png
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Hit_Lt01.anim
+- Assets/ModAssets/JPOGTrex/Animations/TRex_Walk_lp00.anim
 - Assets/ModAssets/JPOGTrex/JPOGTRexAnimator.controller
-- Assets/ModAssets/JPOGTrex/Materials/Trex_opa.png
+- Assets/ModAssets/JPOGTrex/Animations/TRex_Snap_Md_Lp11.anim
 - Assets/ModAssets/JPOGTrex/Materials/JPOGTrex.mat
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Call_01_lp11.anim
 - Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrexTN.asset
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Eat_lo_lp01.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Snap_Md_Lp11.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Snif_Lp01.anim
+- Assets/ModAssets/JPOGTrex/Materials/Trex_opa.png
+- Assets/ModAssets/JPOGTrex/Animations/TRex_Tail_Flck_Lp11.anim
+- Assets/ModAssets/JPOGTrex/Animations/TRex_Eat_lo_lp01.anim
 Dependencies: []
