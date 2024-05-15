@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 394716807
+CRC: 2390739449
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 5b8e7f25c5e7d734851e368e8f7ab4c2
+    Hash: 006e50cef189fecdce52d0ba9bfccb3e
   TypeTreeHash:
     serializedVersion: 2
-    Hash: 0e1d4f3f0dac071c89537a515e47f2f8
+    Hash: 66e3f0e266f45a0a9ee2f1a9437d9aaf
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 5b8e7f25c5e7d734851e368e8f7ab4c2
+    Hash: 006e50cef189fecdce52d0ba9bfccb3e
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -43,13 +43,9 @@ ClassTypes:
 - Class: 95
   Script: {instanceID: 0}
 - Class: 114
-  Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-- Class: 114
-  Script: {fileID: 11500000, guid: d3cecf05b78b173605122a700874719c, type: 3}
+  Script: {fileID: 11500000, guid: 65d3fcb39dd67306e9bb17a603308070, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 04f75356a7e9c978bddc7d568e58a50b, type: 3}
-- Class: 114
-  Script: {fileID: 11500000, guid: 65d3fcb39dd67306e9bb17a603308070, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 3c36d0a92cbb1f26a39169ef0eae393a, type: 3}
 - Class: 114
@@ -57,7 +53,11 @@ ClassTypes:
 - Class: 114
   Script: {fileID: 11500000, guid: 0e80ae96b3eb9177eea5c8f9dadbcda1, type: 3}
 - Class: 114
+  Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+- Class: 114
   Script: {fileID: -1251017026, guid: 152463199d603fb44bfee37a360240d0, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: d3cecf05b78b173605122a700874719c, type: 3}
 - Class: 115
   Script: {instanceID: 0}
 - Class: 137
@@ -85,6 +85,7 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Call_02_lp11.anim
 - Assets/ModAssets/JPOGTrex/Audio/TrexDeath.wav
 - Assets/ModAssets/JPOGTrex/Materials/render.png
+- Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_brth_Lp00.anim
 - Assets/ModAssets/JPOGTrex/JPOGTrexObj.asset
 - Assets/ModAssets/JPOGTrex/Materials/MapDotRed.mat
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Snz_Lp01.anim
