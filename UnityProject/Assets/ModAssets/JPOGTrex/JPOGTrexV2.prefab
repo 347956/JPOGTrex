@@ -176,14 +176,14 @@ AudioSource:
   m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
-  Loop: 0
+  Loop: 1
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0
   Priority: 128
   DopplerLevel: 1
   MinDistance: 0
-  MaxDistance: 50
+  MaxDistance: 150
   Pan2D: 0
   rolloffMode: 1
   BypassEffects: 0
@@ -360,7 +360,7 @@ AudioSource:
   Priority: 128
   DopplerLevel: 1
   MinDistance: 0
-  MaxDistance: 25
+  MaxDistance: 45
   Pan2D: 0
   rolloffMode: 1
   BypassEffects: 0
@@ -530,8 +530,8 @@ MonoBehaviour:
   maxRange: 15
   minRange: 1
   requiresLineOfSight: 1
-  headerText: Example Enemy
-  subText: 
+  headerText: T-rex
+  subText: Looks Hungry!
   scrapValue: 0
   creatureScanID: 7014
   nodeType: 1
@@ -583,9 +583,9 @@ Transform:
   m_GameObject: {fileID: 7843621605168849451}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.56, z: -1.57}
-  m_LocalScale: {x: 6, y: 1.5, z: 6}
-  m_ConstrainProportionsScale: 1
+  m_LocalPosition: {x: 0, y: -0.12, z: -1.57}
+  m_LocalScale: {x: 6, y: 1, z: 6}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5592824689857862755}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -717,6 +717,16 @@ PrefabInstance:
       propertyPath: m_ConstrainProportionsScale
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: -1308384908608880301, guid: a85b2da1a5f97a546ab1c330a1b225eb,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -1308384908608880301, guid: a85b2da1a5f97a546ab1c330a1b225eb,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.9
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: a85b2da1a5f97a546ab1c330a1b225eb,
         type: 3}
       propertyPath: m_Name
@@ -737,6 +747,21 @@ PrefabInstance:
       propertyPath: m_Materials.Array.data[0]
       value: 
       objectReference: {fileID: 2100000, guid: af8529958260a3f4cbea5b8a88ef2aa1, type: 2}
+    - target: {fileID: 5024198733293617894, guid: a85b2da1a5f97a546ab1c330a1b225eb,
+        type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5024198733293617894, guid: a85b2da1a5f97a546ab1c330a1b225eb,
+        type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.9
+      objectReference: {fileID: 0}
+    - target: {fileID: 5024198733293617894, guid: a85b2da1a5f97a546ab1c330a1b225eb,
+        type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
@@ -873,7 +898,7 @@ MonoBehaviour:
     parameterString: 
     boolValue: 0
   - name: ChasingPlayer
-    VoiceClip: {fileID: 8300000, guid: f47e02c53b6abe24a83f707ef9b884e2, type: 3}
+    VoiceClip: {fileID: 8300000, guid: 76e41232ca3d5a74e913832812b7aea2, type: 3}
     playOneShotVoice: 0
     SFXClip: {fileID: 8300000, guid: 24666874100e3a946bbe9018e7d8d8ce, type: 3}
     playOneShotSFX: 0
@@ -920,8 +945,8 @@ MonoBehaviour:
     IsAnimTrigger: 0
     parameterString: 
     boolValue: 0
-  - name: Searching
-    VoiceClip: {fileID: 8300000, guid: bc130130e9548b54bad1fa02b16293a7, type: 3}
+  - name: SpottedPlayer
+    VoiceClip: {fileID: 8300000, guid: deade18b48ae5d14ea38d95b0271c417, type: 3}
     playOneShotVoice: 0
     SFXClip: {fileID: 8300000, guid: 24666874100e3a946bbe9018e7d8d8ce, type: 3}
     playOneShotSFX: 0
