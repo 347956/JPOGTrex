@@ -105,6 +105,7 @@ enum State
                     if(previousState != (int)State.SearchingForPlayer)
                     {
                         SetWalkingAnimation(agent.speed);
+                        DoAnimationClientRpc("startSearch");
                     }
                     if (FoundClosestPlayerInRange(25f, 3f))
                     {
@@ -157,7 +158,6 @@ enum State
                         SetWalkingAnimation(agent.speed);
                     }
                     DoAnimationClientRpc("inChase");
-                    SetWalkingAnimation(agent.speed);
                     // Keep targeting closest player, unless they are over 20 units away and we can't see them.
                     if (!TargetClosestPlayerInAnyCase() || (Vector3.Distance(transform.position, targetPlayer.transform.position) > 20 && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
                     {
