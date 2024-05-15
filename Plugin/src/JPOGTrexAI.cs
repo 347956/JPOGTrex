@@ -50,7 +50,8 @@ enum State
             base.Start();
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
-            DoAnimationClientRpc("startWalk");
+            creatureAnimator.SetTrigger("");
+            SetWalkingAnimation(0f);
             timeSinceNewRandPos = 0;
             positionRandomness = new Vector3(0, 0, 0);
             enemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
@@ -85,6 +86,7 @@ enum State
             if (stunNormalizedTimer > 0f)
             {
                 agent.speed = 0f;
+                SetWalkingAnimation(defaultSpeed);
             }
         }
 
@@ -100,6 +102,7 @@ enum State
 
                 case (int)State.SearchingForPlayer:
                     agent.speed = 0f;
+                    SetWalkingAnimation(defaultSpeed);
                     DoAnimationClientRpc("startSearch");
                     if (FoundClosestPlayerInRange(25f, 3f))
                     {
@@ -113,24 +116,30 @@ enum State
 
                 case (int)State.ChasingPlayer:
                     agent.speed = 0f;
-                    int chaseAnimation = enemyRandom.Next(4);
-                    if (chaseAnimation == 1 ){
-                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
+                    SetWalkingAnimation(defaultSpeed);
+                    int chaseAnimationNmbr = enemyRandom.Next(4);
+                    if (chaseAnimationNmbr == 1 ){
+                        LogIfDebugBuild($"Current State = [{State.ChasingPlayer}] beginning animation: \"beginChase01\".");
+                        DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
                     }
-                    else if( chaseAnimation == 2)
+                    else if( chaseAnimationNmbr == 2)
                     {
-                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
+                        LogIfDebugBuild($"Current State = [{State.ChasingPlayer}] beginning animation: \"beginChase02\".");
+                        DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
                     }
-                    else if( chaseAnimation == 3)
+                    else if( chaseAnimationNmbr == 3)
                     {
-                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
+                        LogIfDebugBuild($"Current State = [{State.ChasingPlayer}] beginning animation: \"beginChase03\".");
+                        DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
                     }
                     else
                     {
-                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
+                        DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
                     }
                     agent.speed = defaultSpeed * 2f;
-                    DoAnimationClientRpc("inChase");
+                    SetWalkingAnimation(defaultSpeed);
+                    LogIfDebugBuild($"Current State = [{State.ChasingPlayer}] beginning animation: \"chasingTarget\".");
+                    DoAnimationClientRpc("chasingTarget");
                     // Keep targeting closest player, unless they are over 20 units away and we can't see them.
                     if (!TargetClosestPlayerInAnyCase() || (Vector3.Distance(transform.position, targetPlayer.transform.position) > 20 && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
                     {
@@ -143,11 +152,14 @@ enum State
                     break;
 
                 case (int)State.AttackingEntity:
+                    LogIfDebugBuild($"Current State = [{State.AttackingEntity}] beginning animation: \"attackEnemy\".");
                     DoAnimationClientRpc("attackEnemy");
                     break;
 
                 case (int)State.GrabPlayer:
                     agent.speed = defaultSpeed / 2;
+                    SetWalkingAnimation(defaultSpeed);
+                    LogIfDebugBuild($"Current State = [{State.GrabPlayer}] beginning animation: \"grabPlayer\".");
                     //Logic To check if grab connected
                     bool hitConnect = true;
                     DoAnimationClientRpc("grabPlayer");
@@ -158,12 +170,14 @@ enum State
                     break;
 
                 case (int)State.GrabbedPlayer:
+                    LogIfDebugBuild($"Current State = [{State.GrabbedPlayer}] beginning animation: \"grabbedPlayer\".");
                     DoAnimationClientRpc("grabbedPlayer");
 
                     SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
                     break;
 
                 case (int)State.GrabbingPlayer:
+                    LogIfDebugBuild($"Current State = [{State.GrabbingPlayer}] beginning animation: \"grabbingPlayer\".");
                     DoAnimationClientRpc("grabbingPlayer");
                     //If T-rex is hungry, it should eat the target (like Giant), otherwise drop it (like blind dog)
                     if (isHungry)
@@ -178,7 +192,8 @@ enum State
                     }
 
                 case (int)State.EatingPlayer:
-                DoAnimationClientRpc("eatingPlauer");
+                    LogIfDebugBuild($"Current State = [{State.EatingPlayer}] beginning animation: \"eatingPlayuer\".");
+                    DoAnimationClientRpc("eatingPlayuer");
                     break;
 
                 case (int)State.Idle:
@@ -199,12 +214,12 @@ enum State
                     break;
 
                 case (int)State.Eating:
+                    LogIfDebugBuild($"Current State = [{State.Eating}] beginning animation: \"eatingIdle02\".");
                     DoAnimationClientRpc("eatingIdle02");
                     SwitchToBehaviourClientRpc((int)State.Eating);
                     break;
 
                 default:
-                    DoAnimationClientRpc("startWalk");
                     LogIfDebugBuild("This Behavior State doesn't exist!");
                     break;
             }
@@ -236,7 +251,45 @@ enum State
             return true;
         }
 
-        void StickingInFrontOfPlayer() {
+
+        //Simple method that sets the walking animation of the T-rex based on it's speed.
+        //This way a more slowed down walking animation or sped up running animation can be applied.
+        //Should be called after the speed of the current behaviour state has been set.
+        public void SetWalkingAnimation(float currentSpeed)
+        {
+            if(currentSpeed == 0f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"stopWalk\".");
+                DoAnimationClientRpc("stopWalk");
+                return;
+            }
+            else if(currentSpeed <= 4f && currentSpeed >1f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"startWalk\".");
+                DoAnimationClientRpc("startWalk");
+                return;
+            }
+            else if(currentSpeed > 4f && currentSpeed  <= 6f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"chasingRun\".");
+                DoAnimationClientRpc("chasingRun");
+                return;
+            }
+            else if (currentSpeed > 0f && currentSpeed <= 1f )
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"slowDown\".");
+                DoAnimationClientRpc("slowDown");
+                return;
+            }
+            else if(currentSpeed > 6f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"speedUp\".");
+                DoAnimationClientRpc("speedUp");
+                return;
+            }
+        }
+
+        public void StickingInFrontOfPlayer() {
             // We only run this method for the host because I'm paranoid about randomness not syncing I guess
             // This is fine because the game does sync the position of the enemy.
             // Also the attack is a ClientRpc so it should always sync
