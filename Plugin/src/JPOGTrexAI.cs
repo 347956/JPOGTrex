@@ -27,6 +27,7 @@ namespace JPOGTrex {
         bool isDeadAnimationDone;
         bool isHungry;
         float defaultSpeed = 4f;
+        State previousState;
 enum State
         {
             SearchingForPlayer,
@@ -36,7 +37,7 @@ enum State
             GrabbedPlayer,
             GrabbingPlayer,
             EatingPlayer,
-            Searching,
+            SpottedPlayer,
             Idle,
             Eating
         }
@@ -50,7 +51,7 @@ enum State
             base.Start();
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
-            SetWalkingAnimation(0f);
+            SetWalkingAnimation(defaultSpeed);
             timeSinceNewRandPos = 0;
             positionRandomness = new Vector3(0, 0, 0);
             enemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
@@ -85,7 +86,7 @@ enum State
             if (stunNormalizedTimer > 0f)
             {
                 agent.speed = 0f;
-                SetWalkingAnimation(defaultSpeed);
+                SetWalkingAnimation(agent.speed);
             }
         }
 
@@ -100,131 +101,172 @@ enum State
             {
 
                 case (int)State.SearchingForPlayer:
-                    agent.speed = 0.1f;
-                    SetWalkingAnimation(agent.speed);
-                    DoAnimationClientRpc("startSearch");
+                    agent.speed = defaultSpeed;
+                    if(previousState != (int)State.SearchingForPlayer)
+                    {
+                        SetWalkingAnimation(agent.speed);
+                    }
                     if (FoundClosestPlayerInRange(25f, 3f))
                     {
                         LogIfDebugBuild("Start Target Player");
                         StopSearch(currentSearch);
-                        DoAnimationClientRpc("foundPlayer");
-                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        previousState = State.SearchingForPlayer;
+                        SwitchToBehaviourClientRpc((int)State.SpottedPlayer);
                         return;
                     }
+                    previousState = State.SearchingForPlayer;
                     break;
 
-                case (int)State.ChasingPlayer:
+                case(int)State.SpottedPlayer:
                     agent.speed = 0.1f;
-                    SetWalkingAnimation(agent.speed);
                     int chaseAnimationNmbr = enemyRandom.Next(4);
-                    if (chaseAnimationNmbr == 1 ){
-                        LogIfDebugBuild($"Current State = [{State.ChasingPlayer}] beginning animation: \"beginChase01\".");
-                        DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
-                    }
-                    else if( chaseAnimationNmbr == 2)
+                    if (chaseAnimationNmbr == 1)
                     {
-                        LogIfDebugBuild($"Current State = [{State.ChasingPlayer}] beginning animation: \"beginChase02\".");
                         DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
+                        previousState = State.SpottedPlayer;
+                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        break;
                     }
-                    else if( chaseAnimationNmbr == 3)
+                    else if (chaseAnimationNmbr == 2)
                     {
-                        LogIfDebugBuild($"Current State = [{State.ChasingPlayer}] beginning animation: \"beginChase03\".");
                         DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
+                        previousState = State.SpottedPlayer;
+                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        break;
+                    }
+                    else if (chaseAnimationNmbr == 3)
+                    {
+                        DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
+                        previousState = State.SpottedPlayer;
+                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        break;
                     }
                     else
                     {
                         DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
+                        previousState = State.SpottedPlayer;
+                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        break;
                     }
+
+
+                case (int)State.ChasingPlayer:
                     agent.speed = defaultSpeed * 2f;
+                    if(previousState != State.ChasingPlayer)
+                    {
+                        SetWalkingAnimation(agent.speed);
+                    }
+                    DoAnimationClientRpc("inChase");
                     SetWalkingAnimation(agent.speed);
-                    LogIfDebugBuild($"Current State = [{State.ChasingPlayer}] beginning animation: \"chasingTarget\".");
-                    DoAnimationClientRpc("chasingTarget");
                     // Keep targeting closest player, unless they are over 20 units away and we can't see them.
                     if (!TargetClosestPlayerInAnyCase() || (Vector3.Distance(transform.position, targetPlayer.transform.position) > 20 && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
                     {
                         LogIfDebugBuild("Stop Target Player");
                         StartSearch(transform.position);
+                        DoAnimationClientRpc("startWalk");
                         SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                         return;
                     }
                     SetDestinationToPosition(targetPlayer.transform.position);
+                    previousState = State.ChasingPlayer;
                     break;
 
                 case (int)State.AttackingEntity:
-                    LogIfDebugBuild($"Current State = [{State.AttackingEntity}] beginning animation: \"attackEnemy\".");
+                    previousState = State.AttackingEntity;
                     DoAnimationClientRpc("attackEnemy");
+                    previousState = State.AttackingEntity;
                     break;
 
                 case (int)State.GrabPlayer:
                     agent.speed = defaultSpeed / 2;
-                    SetWalkingAnimation(agent.speed);
-                    LogIfDebugBuild($"Current State = [{State.GrabPlayer}] beginning animation: \"grabPlayer\".");
+                    if(previousState != State.GrabPlayer)
+                    {
+                        SetWalkingAnimation(agent.speed);
+                    }
                     //Logic To check if grab connected
                     bool hitConnect = true;
                     DoAnimationClientRpc("grabPlayer");
                     if (hitConnect != false)
                     {
+                        previousState = State.GrabPlayer;
                         SwitchToBehaviourClientRpc((int)State.GrabbedPlayer);
+                        break;
                     }
+                    previousState = State.GrabPlayer;
                     break;
 
                 case (int)State.GrabbedPlayer:
-                    LogIfDebugBuild($"Current State = [{State.GrabbedPlayer}] beginning animation: \"grabbedPlayer\".");
                     DoAnimationClientRpc("grabbedPlayer");
-
+                    previousState = State.GrabbedPlayer;
                     SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
                     break;
 
                 case (int)State.GrabbingPlayer:
-                    LogIfDebugBuild($"Current State = [{State.GrabbingPlayer}] beginning animation: \"grabbingPlayer\".");
+                    agent.speed = 0.1f;
+                    if(previousState != State.GrabbingPlayer)
+                    {
+                        SetWalkingAnimation(agent.speed);
+                    }
                     DoAnimationClientRpc("grabbingPlayer");
                     //If T-rex is hungry, it should eat the target (like Giant), otherwise drop it (like blind dog)
                     if (isHungry)
                     {
+                        previousState = State.GrabbingPlayer;
                         SwitchToBehaviourClientRpc((int)State.EatingPlayer);
                         break;
                     }
                     else
                     {
+                        previousState = State.GrabbingPlayer;
                         SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                         break;
                     }
 
                 case (int)State.EatingPlayer:
-                    LogIfDebugBuild($"Current State = [{State.EatingPlayer}] beginning animation: \"eatingPlayuer\".");
+                    agent.speed = 0f;
+                    if(previousState != State.EatingPlayer)
+                    {
+                        SetWalkingAnimation(agent.speed);
+                    }
                     DoAnimationClientRpc("eatingPlayuer");
+                    previousState = State.EatingPlayer;
                     break;
 
                 case (int)State.Idle:
                     int rndIdle = enemyRandom.Next(4);
                     if (rndIdle == 1)
                     {
-                        DoAnimationClientRpc("breathingIdle");
+                        agent.speed = 1f;
+                        DoAnimationClientRpc("lookingIdle");
+                        previousState = State.Idle;
+                        break;
                     }
                     else if (rndIdle == 2)
                     {
-                        DoAnimationClientRpc("sneezingIdle");
+                        agent.speed = 1f;
+                        DoAnimationClientRpc("sniffingIdle");
+                        previousState = State.Idle;
+                        break;
                     }
                     else if (rndIdle == 3)
                     {
+                        agent.speed = 0f;
                         DoAnimationClientRpc("eatingIdle01");
+                        previousState = State.Idle;
                         SwitchToBehaviourClientRpc((int)State.Eating);
+                        break;
                     }
                     break;
 
                 case (int)State.Eating:
-                    LogIfDebugBuild($"Current State = [{State.Eating}] beginning animation: \"eatingIdle02\".");
-                    DoAnimationClientRpc("eatingIdle02");
+                    DoAnimationClientRpc("eatingIdle02"); 
+                    previousState = State.Idle;
                     SwitchToBehaviourClientRpc((int)State.Eating);
-                    break;
-
-
-                case (int)State.Searching:
-                    LogIfDebugBuild($"Current State = [{State.Eating}] beginning animation: \"eatingIdle02\".");
                     break;
 
                 default:
                     LogIfDebugBuild("This Behavior State doesn't exist!");
+                    SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                     break;
             }
         }
