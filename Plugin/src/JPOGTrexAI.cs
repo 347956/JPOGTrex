@@ -27,6 +27,7 @@ namespace JPOGTrex {
         bool isDeadAnimationDone;
         bool isHungry;
         float defaultSpeed = 4f;
+        State previousState;
 enum State
         {
             SearchingForPlayer,
@@ -36,7 +37,7 @@ enum State
             GrabbedPlayer,
             GrabbingPlayer,
             EatingPlayer,
-            Searching,
+            SpottedPlayer,
             Idle,
             Eating
         }
@@ -50,7 +51,7 @@ enum State
             base.Start();
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
-            DoAnimationClientRpc("startWalk");
+            SetWalkingAnimation(defaultSpeed);
             timeSinceNewRandPos = 0;
             positionRandomness = new Vector3(0, 0, 0);
             enemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
@@ -85,6 +86,7 @@ enum State
             if (stunNormalizedTimer > 0f)
             {
                 agent.speed = 0f;
+                SetWalkingAnimation(agent.speed);
             }
         }
 
@@ -99,113 +101,172 @@ enum State
             {
 
                 case (int)State.SearchingForPlayer:
-                    agent.speed = 0f;
-                    DoAnimationClientRpc("startSearch");
+                    agent.speed = defaultSpeed;
+                    if(previousState != (int)State.SearchingForPlayer)
+                    {
+                        SetWalkingAnimation(agent.speed);
+                        DoAnimationClientRpc("startSearch");
+                    }
                     if (FoundClosestPlayerInRange(25f, 3f))
                     {
                         LogIfDebugBuild("Start Target Player");
                         StopSearch(currentSearch);
-                        DoAnimationClientRpc("foundPlayer");
-                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        previousState = State.SearchingForPlayer;
+                        SwitchToBehaviourClientRpc((int)State.SpottedPlayer);
                         return;
                     }
+                    previousState = State.SearchingForPlayer;
                     break;
 
-                case (int)State.ChasingPlayer:
-                    agent.speed = 0f;
-                    int chaseAnimation = enemyRandom.Next(4);
-                    if (chaseAnimation == 1 ){
-                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
-                    }
-                    else if( chaseAnimation == 2)
+                case(int)State.SpottedPlayer:
+                    agent.speed = 0.1f;
+                    int chaseAnimationNmbr = enemyRandom.Next(4);
+                    if (chaseAnimationNmbr == 1)
                     {
-                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
+                        DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
+                        previousState = State.SpottedPlayer;
+                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        break;
                     }
-                    else if( chaseAnimation == 3)
+                    else if (chaseAnimationNmbr == 2)
                     {
-                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
+                        DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
+                        previousState = State.SpottedPlayer;
+                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        break;
+                    }
+                    else if (chaseAnimationNmbr == 3)
+                    {
+                        DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
+                        previousState = State.SpottedPlayer;
+                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        break;
                     }
                     else
                     {
-                        DoAnimationClientRpc("beginchase0" + chaseAnimation);
+                        DoAnimationClientRpc("beginchase0" + chaseAnimationNmbr.ToString());
+                        previousState = State.SpottedPlayer;
+                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        break;
                     }
+
+
+                case (int)State.ChasingPlayer:
                     agent.speed = defaultSpeed * 2f;
+                    if(previousState != State.ChasingPlayer)
+                    {
+                        SetWalkingAnimation(agent.speed);
+                    }
                     DoAnimationClientRpc("inChase");
                     // Keep targeting closest player, unless they are over 20 units away and we can't see them.
                     if (!TargetClosestPlayerInAnyCase() || (Vector3.Distance(transform.position, targetPlayer.transform.position) > 20 && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
                     {
                         LogIfDebugBuild("Stop Target Player");
                         StartSearch(transform.position);
+                        DoAnimationClientRpc("startWalk");
                         SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                         return;
                     }
                     SetDestinationToPosition(targetPlayer.transform.position);
+                    previousState = State.ChasingPlayer;
                     break;
 
                 case (int)State.AttackingEntity:
+                    previousState = State.AttackingEntity;
                     DoAnimationClientRpc("attackEnemy");
+                    previousState = State.AttackingEntity;
                     break;
 
                 case (int)State.GrabPlayer:
                     agent.speed = defaultSpeed / 2;
+                    if(previousState != State.GrabPlayer)
+                    {
+                        SetWalkingAnimation(agent.speed);
+                    }
                     //Logic To check if grab connected
                     bool hitConnect = true;
                     DoAnimationClientRpc("grabPlayer");
                     if (hitConnect != false)
                     {
+                        previousState = State.GrabPlayer;
                         SwitchToBehaviourClientRpc((int)State.GrabbedPlayer);
+                        break;
                     }
+                    previousState = State.GrabPlayer;
                     break;
 
                 case (int)State.GrabbedPlayer:
                     DoAnimationClientRpc("grabbedPlayer");
-
+                    previousState = State.GrabbedPlayer;
                     SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
                     break;
 
                 case (int)State.GrabbingPlayer:
+                    agent.speed = 0.1f;
+                    if(previousState != State.GrabbingPlayer)
+                    {
+                        SetWalkingAnimation(agent.speed);
+                    }
                     DoAnimationClientRpc("grabbingPlayer");
                     //If T-rex is hungry, it should eat the target (like Giant), otherwise drop it (like blind dog)
                     if (isHungry)
                     {
+                        previousState = State.GrabbingPlayer;
                         SwitchToBehaviourClientRpc((int)State.EatingPlayer);
                         break;
                     }
                     else
                     {
+                        previousState = State.GrabbingPlayer;
                         SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                         break;
                     }
 
                 case (int)State.EatingPlayer:
-                DoAnimationClientRpc("eatingPlauer");
+                    agent.speed = 0f;
+                    if(previousState != State.EatingPlayer)
+                    {
+                        SetWalkingAnimation(agent.speed);
+                    }
+                    DoAnimationClientRpc("eatingPlayuer");
+                    previousState = State.EatingPlayer;
                     break;
 
                 case (int)State.Idle:
                     int rndIdle = enemyRandom.Next(4);
                     if (rndIdle == 1)
                     {
-                        DoAnimationClientRpc("breathingIdle");
+                        agent.speed = 1f;
+                        DoAnimationClientRpc("lookingIdle");
+                        previousState = State.Idle;
+                        break;
                     }
                     else if (rndIdle == 2)
                     {
-                        DoAnimationClientRpc("sneezingIdle");
+                        agent.speed = 1f;
+                        DoAnimationClientRpc("sniffingIdle");
+                        previousState = State.Idle;
+                        break;
                     }
                     else if (rndIdle == 3)
                     {
+                        agent.speed = 0f;
                         DoAnimationClientRpc("eatingIdle01");
+                        previousState = State.Idle;
                         SwitchToBehaviourClientRpc((int)State.Eating);
+                        break;
                     }
                     break;
 
                 case (int)State.Eating:
-                    DoAnimationClientRpc("eatingIdle02");
+                    DoAnimationClientRpc("eatingIdle02"); 
+                    previousState = State.Idle;
                     SwitchToBehaviourClientRpc((int)State.Eating);
                     break;
 
                 default:
-                    DoAnimationClientRpc("startWalk");
                     LogIfDebugBuild("This Behavior State doesn't exist!");
+                    SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                     break;
             }
         }
@@ -236,7 +297,45 @@ enum State
             return true;
         }
 
-        void StickingInFrontOfPlayer() {
+
+        //Simple method that sets the walking animation of the T-rex based on it's speed.
+        //This way a more slowed down walking animation or sped up running animation can be applied.
+        //Should be called after the speed of the current behaviour state has been set.
+        public void SetWalkingAnimation(float currentSpeed)
+        {
+            if(currentSpeed == 0f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"stopWalk\".");
+                DoAnimationClientRpc("stopWalk");
+                return;
+            }
+            else if(currentSpeed <= 4f && currentSpeed >1f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"startWalk\".");
+                DoAnimationClientRpc("startWalk");
+                return;
+            }
+            else if(currentSpeed > 4f && currentSpeed  <= 6f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"chasingRun\".");
+                DoAnimationClientRpc("chasingRun");
+                return;
+            }
+            else if (currentSpeed > 0f && currentSpeed <= 1f )
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"slowDown\".");
+                DoAnimationClientRpc("slowDown");
+                return;
+            }
+            else if(currentSpeed > 6f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"speedUp\".");
+                DoAnimationClientRpc("speedUp");
+                return;
+            }
+        }
+
+        public void StickingInFrontOfPlayer() {
             // We only run this method for the host because I'm paranoid about randomness not syncing I guess
             // This is fine because the game does sync the position of the enemy.
             // Also the attack is a ClientRpc so it should always sync
