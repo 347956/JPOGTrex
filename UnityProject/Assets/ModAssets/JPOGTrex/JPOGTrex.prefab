@@ -1270,7 +1270,7 @@ MonoBehaviour:
     parameterString: 
     boolValue: 0
   - name: ChasingPlayer
-    VoiceClip: {fileID: 8300000, guid: 76e41232ca3d5a74e913832812b7aea2, type: 3}
+    VoiceClip: {fileID: 8300000, guid: bc130130e9548b54bad1fa02b16293a7, type: 3}
     playOneShotVoice: 0
     SFXClip: {fileID: 8300000, guid: 24666874100e3a946bbe9018e7d8d8ce, type: 3}
     playOneShotSFX: 0
