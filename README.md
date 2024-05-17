@@ -30,15 +30,19 @@ Some tips when encountering problems in this project or your own.
 
 ### General 
 - Don't forget to replace the build dll into: "UnityProject\Assets\Plugins"
+- Don't forget to add the prefab or other assets to the assetbundle in Unity
 
-### Animations
+### Animations 
+- Most animation in this project are started from the "any event". I am not sure if this is best practice, but it makes animating a lot easier.
+- Coroutine can be can be used to execute code over frames. Usefull for waiting on animaitons to finish or executing logic at certain points during the animations.
+- Enabling "Has Exit Time" makes animation B wait for animation A to finish in a transition of A > B.
 
 ## Credits 🗣️
 
 - [EvaisaDev](https://github.com/EvaisaDev) - [LethalLib](https://github.com/EvaisaDev/LethalLib)  
 - [Lordfirespeed](https://github.com/Lordfirespeed) - reference tcli usage in LethalLib  
 - [Xilophor](https://github.com/Xilophor) - csproj files taken from Xilo's [mod templates](https://github.com/Xilophor/Lethal-Company-Mod-Templates)  
-- [XuuXiao](https://github.com/XuuXiao/) - porting LC-JPOGTrex for LC v50  
+- [XuuXiao](https://github.com/XuuXiao/) - porting LC-ExampleEnemy for LC v50  
 - [nomnomab](https://github.com/nomnomab) - [Lethal Company Project Patcher](https://github.com/nomnomab/lc-project-patcher) - used for the Unity Project  
 - [AlbinoGeek](https://github.com/AlbinoGeek) - issue template  
 - [HENDRIX-ZT2 ](https://github.com/HENDRIX-ZT2) & [AdventureT](https://github.com/AdventureT) - creating the blender plugin: [jpog-blender](https://github.com/HENDRIX-ZT2/jpog-blender) that is able to read ".tmd" files from the game: [Jurassic Park: Operation Genisis](https://en.wikipedia.org/wiki/Jurassic_Park:_Operation_Genesis)
