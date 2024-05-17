@@ -136,7 +136,7 @@ namespace JPOGTrex {
 
                 case (int)State.SpottedPlayer:
                     agent.speed = 0f;
-                    if(previousState != State.SpottedPlayer && !isSniffingStarted)
+                    if (previousState != State.SpottedPlayer && !isSniffingStarted)
                     {
                         sniffing = true;
                         LogIfDebugBuild("JPOGTrex: Spotted Player!");
@@ -145,7 +145,7 @@ namespace JPOGTrex {
                         isSniffingStarted = true;
 
                     }
-                    if(sniffing == false)
+                    if (sniffing == false)
                     {
                         SwitchToBehaviourClientRpc((int)State.Roaring);
                         previousState = State.SpottedPlayer;
@@ -412,7 +412,7 @@ namespace JPOGTrex {
         private IEnumerator BeginChase(int animationNumber)
         {
             previousState = State.SpottedPlayer;
-            string animationName = "beginchase0" + animationNumber.ToString();
+            string animationName = "beginChase0" + animationNumber.ToString();
             LogIfDebugBuild($"JPOGTrex: Roaring [{animationNumber}]");
             DoAnimationClientRpc(animationName);
             // Adjust wait time based on animationNumber
