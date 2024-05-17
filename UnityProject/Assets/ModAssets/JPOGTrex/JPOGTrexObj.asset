@@ -65,7 +65,7 @@ MonoBehaviour:
   useNumberSpawnedFalloff: 0
   spawnInGroupsOf: 0
   requireNestObjectsToSpawn: 0
-  enemyPrefab: {fileID: 5104378007640032985, guid: 3784512623d77be4392f4871c92b8953,
+  enemyPrefab: {fileID: 5874863371319974617, guid: 0ac399f30d62138459dd9f2b5c6812f3,
     type: 3}
   PowerLevel: 2
   MaxCount: 2
