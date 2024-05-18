@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using GameNetcodeStuff;
 using Unity.Netcode;
@@ -22,6 +23,8 @@ namespace JPOGTrex {
         public Transform mouthGrip = null!;
         private DeadBodyInfo carryingBody = null!;
         private PlayerControllerB playerInGrabAnimation = null!;
+        private List<PlayerControllerB> grabbedPlayers = null!;
+        private int hittAblePlayers = 0;
 #pragma warning restore 0649
         private Coroutine grabbingPlayerCoroutine;
         public int suspicionLevel;
@@ -42,6 +45,8 @@ namespace JPOGTrex {
         private bool isRoaringStarted;
         private bool isSniffingStarted;
         private bool sniffing;
+        private bool beginningGrab;
+        private bool hitConnect;
 
         enum State
         {
@@ -193,6 +198,13 @@ namespace JPOGTrex {
                         return;
                     }
                     SetDestinationToPosition(targetPlayer.transform.position);
+                    CheckForPlayersInRangeOfGrabAttack();
+                    if(hittAblePlayers > 0)
+                    {
+                        SwitchToBehaviourClientRpc((int)State.GrabPlayer);
+                        previousState = State.ChasingPlayer;
+                    }
+
                     previousState = State.ChasingPlayer;
                     break;
 
@@ -207,17 +219,24 @@ namespace JPOGTrex {
                     if (previousState != State.GrabPlayer)
                     {
                         SetWalkingAnimation(agent.speed);
-                    }
-                    //Logic To check if grab connected
-                    bool hitConnect = true;
-                    DoAnimationClientRpc("grabPlayer");
-                    if (hitConnect != false)
-                    {
                         previousState = State.GrabPlayer;
-                        SwitchToBehaviourClientRpc((int)State.GrabbedPlayer);
-                        break;
                     }
                     previousState = State.GrabPlayer;
+                    if (!beginningGrab)
+                    {
+                        beginningGrab = true;
+                        StartCoroutine(BeginGrab());
+                    }
+                    if (!hitConnect)
+                    {
+                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        break;
+                    }
+                    if(!beginningGrab && hitConnect)
+                    {
+                        SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
+                        break;
+                    }
                     break;
 
                 case (int)State.GrabbedPlayer:
@@ -233,12 +252,19 @@ namespace JPOGTrex {
                     {
                         SetWalkingAnimation(agent.speed);
                     }
-                    if(previousState != State.GrabbingPlayer && inGrabbingAnimation == false)
+                    if (previousState != State.GrabbingPlayer && inGrabbingAnimation == false && grabbedPlayers.Count > 0)
                     {
-                        BeginGrabbingPlayer(playerInGrabAnimation, transform.position, enemyYRot);
+                        foreach(PlayerControllerB playerControllerB in grabbedPlayers)
+                        {
+                            BeginGrabbingPlayer(playerControllerB, transform.position, enemyYRot);
+                        }                       
                         inGrabbingAnimation = true;
-
                     }
+                    if (!inGrabbingAnimation)
+                    {
+                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                    }
+                    previousState = State.GrabbingPlayer;
                     break;
                    
 
@@ -427,10 +453,13 @@ namespace JPOGTrex {
         {
             LogIfDebugBuild("JPOGTrex: BeginningGrab");
             DoAnimationClientRpc("grabPlayer");
-            yield return new WaitForSeconds(0.4f);
+            //yield return new WaitForSeconds(0.4f);
             DoAnimationClientRpc("grabbedPlayer");
+            GrabAttackHitClientRpc();
+            KillGrabbedPlayers();
             yield return new WaitForSeconds(1.2f);
-            SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
+            beginningGrab = false;
+            yield break;
         }
 
         /*        IEnumerator GrabAttack() {
@@ -487,6 +516,15 @@ namespace JPOGTrex {
                     }
                 }*/
 
+
+        private void KillGrabbedPlayers()
+        {
+            foreach (PlayerControllerB grabbedPlayer in grabbedPlayers)
+            {
+                KillPlayer((int)grabbedPlayer.playerClientId);
+            }
+        }
+
         private IEnumerator KillPlayer(int playerId)
         {
             if (IsOwner)
@@ -512,7 +550,6 @@ namespace JPOGTrex {
                 inKillAnimation = false;
                 yield break;
             }
-
             TakeBodyInMouth(killPlayer.deadBody);
             startTime = Time.timeSinceLevelLoad;
             Quaternion rotateTo = Quaternion.Euler(new Vector3(0f, RoundManager.Instance.YRotationThatFacesTheFarthestFromPosition(base.transform.position + Vector3.up * 0.6f), 0f));
@@ -543,10 +580,10 @@ namespace JPOGTrex {
             inSpecialAnimationWithPlayer = playerBeingGrabbed;
             inSpecialAnimationWithPlayer.inSpecialInteractAnimation = true;
             inSpecialAnimationWithPlayer.inAnimationWithEnemy = this;
-            if (grabbingPlayerCoroutine != null)
+/*            if (grabbingPlayerCoroutine != null)
             {
                 StopCoroutine(grabbingPlayerCoroutine);
-            }
+            }*/
             grabbingPlayerCoroutine = StartCoroutine(GrabbingPlayerAnimation(playerBeingGrabbed, enemyPosition, enemyYRot));
         }
 
@@ -560,7 +597,7 @@ namespace JPOGTrex {
             playerBeingGrabbed.isInHangarShipRoom = false;
             playerBeingGrabbed.BreakLegsSFXClientRpc();
             playerBeingGrabbed.DropBlood(enemyPosition, true, true);
-            StartCoroutine(KillPlayer(playerBeingGrabbed.currentSuitID));
+            StartCoroutine(KillPlayer((int)playerBeingGrabbed.playerClientId));
             yield return new WaitForSeconds(2.7f);
             if (isHungry && carryingBody != null)
             {
@@ -606,6 +643,30 @@ namespace JPOGTrex {
         }
 
 
+        private void CheckForPlayersInRangeOfGrabAttack()
+        {
+            LogIfDebugBuild("Checking if Player can be grabbed");
+            int playerLayer = 1 << 3;
+            LogIfDebugBuild("Checking if Player can be grabbed");
+            Collider[] hitColliders = Physics.OverlapBox(attackArea.position, attackArea.localScale, Quaternion.identity, playerLayer);
+            if(hitColliders.Length > 0)
+            {
+                foreach (var player in hitColliders)
+                {
+                    PlayerControllerB playerControllerB = MeetsStandardPlayerCollisionConditions(player);
+                    if (playerControllerB != null)
+                    {
+                        LogIfDebugBuild($"JPOGTrex: Grab attack can hit player [{playerControllerB.playerClientId}]!");
+                        hittAblePlayers++;
+                    }
+                }
+            }
+            else
+            {
+                LogIfDebugBuild("JPOGTrex: No players to hit!");
+            }
+        }
+
 
         [ClientRpc]
         public void DoAnimationClientRpc(string animationName) {
@@ -623,11 +684,12 @@ namespace JPOGTrex {
                     PlayerControllerB playerControllerB = MeetsStandardPlayerCollisionConditions(player);
                     if (playerControllerB != null)
                     {
-                        LogIfDebugBuild("Swing attack hit player!");
+                        LogIfDebugBuild($"grab attack hit player[{playerControllerB.playerClientId}]!");
                         timeSinceHittingLocalPlayer = 0f;
-                        playerControllerB.DamagePlayer(40);
+                        grabbedPlayers.Add(playerControllerB);
                     }
                 }
+                hitConnect = true;
             }
         }
     }
