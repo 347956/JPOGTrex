@@ -374,6 +374,59 @@ Transform:
   - {fileID: 1918022212814130549}
   m_Father: {fileID: 6492119383043678533}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1683668087306775643
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2147176701623385217}
+  - component: {fileID: 134651463090086558}
+  m_Layer: 19
+  m_Name: MouthGrip
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2147176701623385217
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683668087306775643}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.603, y: 3.3152, z: 4.946}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5329222984914797012}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &134651463090086558
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683668087306775643}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.2, y: 0.2, z: 0.2}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1797143012242880158
 GameObject:
   m_ObjectHideFlags: 0
@@ -824,7 +877,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6d7127b8f98ca8ec9896b384a71d39a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mainScript: {fileID: 0}
+  mainScript: {fileID: 8974319028779878893}
   canCollideWithEnemies: 0
   onlyCollideWhenGrounded: 0
 --- !u!65 &1206845426294185546
@@ -846,8 +899,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2, y: 2, z: 13.763701}
-  m_Center: {x: 0, y: 1, z: -1.6970228}
+  m_Size: {x: 2, y: 1.7579249, z: 5.2995853}
+  m_Center: {x: 0, y: 0.87896246, z: -0.76418865}
 --- !u!54 &3811074046318701563
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -1195,6 +1248,7 @@ Transform:
   - {fileID: 7242104946162465353}
   - {fileID: 5679349036219040506}
   - {fileID: 5751709844823945800}
+  - {fileID: 2147176701623385217}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &3202872475098061070
@@ -1415,9 +1469,9 @@ MonoBehaviour:
   stunnedByPlayer: {fileID: 0}
   debugEnemyAI: 0
   isOutside: 0
-  turnCompass: {fileID: 0}
-  attackArea: {fileID: 0}
-  mouthGrip: {fileID: 0}
+  turnCompass: {fileID: 7991254649779874056}
+  attackArea: {fileID: 7852763459864048508}
+  mouthGrip: {fileID: 2147176701623385217}
   suspicionLevel: 0
 --- !u!114 &3735662421254837734
 MonoBehaviour:
@@ -1772,7 +1826,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7852763459864048508}
-  m_Layer: 0
+  - component: {fileID: 388476568856733189}
+  m_Layer: 19
   m_Name: AttackArea
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1788,12 +1843,33 @@ Transform:
   m_GameObject: {fileID: 7428005549773019969}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.56, z: 5.6299996}
+  m_LocalPosition: {x: 0, y: 0.56, z: 4.49}
   m_LocalScale: {x: 10, y: 2, z: 6.3999996}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 5329222984914797012}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!65 &388476568856733189
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7428005549773019969}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.23487937, y: 1.4774264, z: 0.33952034}
+  m_Center: {x: 0.035966307, y: 0.23871145, z: 0}
 --- !u!1 &7499330357683007772
 GameObject:
   m_ObjectHideFlags: 0

@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
+  m_IndirectSpecularColor: {r: 262.38358, g: 325.10843, b: 430.30963, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -570,76 +570,71 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 3735662421254837734, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 3735662421254837734, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: GlobalObjectIdHash
       value: 3438213146
       objectReference: {fileID: 0}
-    - target: {fileID: 5329222984914797012, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 5329222984914797012, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5329222984914797012, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 5329222984914797012, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: m_LocalPosition.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5329222984914797012, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 5329222984914797012, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: m_LocalPosition.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5329222984914797012, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 5329222984914797012, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: m_LocalRotation.w
       value: 1
       objectReference: {fileID: 0}
-    - target: {fileID: 5329222984914797012, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 5329222984914797012, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: m_LocalRotation.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5329222984914797012, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 5329222984914797012, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: m_LocalRotation.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5329222984914797012, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 5329222984914797012, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: m_LocalRotation.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5329222984914797012, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 5329222984914797012, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5329222984914797012, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 5329222984914797012, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5329222984914797012, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 5329222984914797012, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5874863371319974617, guid: 0ac399f30d62138459dd9f2b5c6812f3,
+    - target: {fileID: 5874863371319974617, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: m_Name
       value: JPOG-TrexV2
       objectReference: {fileID: 0}
-    - target: {fileID: 8974319028779878893, guid: 0ac399f30d62138459dd9f2b5c6812f3,
-        type: 3}
-      propertyPath: enemyBehaviourStates.Array.data[1].VoiceClip
-      value: 
-      objectReference: {fileID: 8300000, guid: bc130130e9548b54bad1fa02b16293a7, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 0ac399f30d62138459dd9f2b5c6812f3, type: 3}
+  m_SourcePrefab: {fileID: 100100000, guid: 2da7a4237e5c30e4ab083e442165fd14, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

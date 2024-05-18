@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 902708643
+CRC: 4230871169
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 5a7e4b94a67d10a6d11a1ed7248e6f84
+    Hash: 45bd0adb2dcc592954a70da101fd4c10
   TypeTreeHash:
     serializedVersion: 2
     Hash: ecd525ebf29e458ef6588af8a4fb0130
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 5a7e4b94a67d10a6d11a1ed7248e6f84
+    Hash: 45bd0adb2dcc592954a70da101fd4c10
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -96,7 +96,6 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_A11.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_Shake_Lp10.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Inj_Lp00.anim
-- Assets/ModAssets/JPOGTrex/JPOGTrex.prefab
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Run_lp00.anim
 - Assets/ModAssets/JPOGTrex/Audio/TrexRoar01.wav
 - Assets/ModAssets/JPOGTrex/Audio/TrexHurt.wav
