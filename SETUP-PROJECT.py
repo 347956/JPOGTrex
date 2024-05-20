@@ -220,8 +220,8 @@ def main():
             Condition="!Exists('$(PluginsDirectory)$(AssemblyName)-DEV/')"
          />
          <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginsDirectory)$(AssemblyName)-DEV/"/>
-         <!-- We will copy the asset bundle named "modassets" over -->
-         <Copy SourceFiles="../UnityProject/AssetBundles/StandaloneWindows/modassets" DestinationFolder="$(PluginsDirectory)$(AssemblyName)-DEV/"/>
+         <!-- We will copy the asset bundle named "jpogtrexassets" over -->
+         <Copy SourceFiles="../UnityProject/AssetBundles/StandaloneWindows/jpogtrexassets" DestinationFolder="$(PluginsDirectory)$(AssemblyName)-DEV/"/>
          <Exec Command="echo '[csproj.user] Mod files copied to $(PluginsDirectory)$(AssemblyName)-DEV/'" />
       </Target>
    </Project>"""
