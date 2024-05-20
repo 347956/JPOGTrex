@@ -570,10 +570,20 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1084098002897197223, guid: 2da7a4237e5c30e4ab083e442165fd14,
+        type: 3}
+      propertyPath: MaxDistance
+      value: 70
+      objectReference: {fileID: 0}
     - target: {fileID: 3735662421254837734, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: GlobalObjectIdHash
       value: 3438213146
+      objectReference: {fileID: 0}
+    - target: {fileID: 5124587481104809813, guid: 2da7a4237e5c30e4ab083e442165fd14,
+        type: 3}
+      propertyPath: MaxDistance
+      value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 5329222984914797012, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
@@ -629,11 +639,6 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: JPOG-TrexV2
-      objectReference: {fileID: 0}
-    - target: {fileID: 7852763459864048508, guid: 2da7a4237e5c30e4ab083e442165fd14,
-        type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 1.54
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
