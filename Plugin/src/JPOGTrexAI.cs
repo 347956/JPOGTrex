@@ -346,28 +346,39 @@ namespace JPOGTrex {
 
 
         //Player Detection &
-
-        private void TrexSeePlayerEffect()
+        private void TrexStartsChasingPlayerEffect(PlayerControllerB playerControllerB)
         {
-            if (GameNetworkManager.Instance.localPlayerController.isPlayerDead || GameNetworkManager.Instance.localPlayerController.isInsideFactory)
+            if (playerControllerB.isPlayerDead || playerControllerB.isInsideFactory)
             {
                 return;
             }
-            if (currentBehaviourStateIndex == 1 && chasingPlayer == GameNetworkManager.Instance.localPlayerController && !lostPlayerInChase)
+            if (currentBehaviourStateIndex == (int)State.SearchingForPlayer && playerControllerB == GameNetworkManager.Instance.localPlayerController)
             {
-                GameNetworkManager.Instance.localPlayerController.IncreaseFearLevelOverTime(2.0f);
+                targetPlayer.JumpToFearLevel(10.0f);
+                return;
+            }
+        }
+        private void TrexSeePlayerEffect(PlayerControllerB playerControllerB)
+        {
+            if (playerControllerB.isPlayerDead || playerControllerB.isInsideFactory)
+            {
+                return;
+            }
+            if (playerControllerB == GameNetworkManager.Instance.localPlayerController)
+            {
+                playerControllerB.IncreaseFearLevelOverTime(2.0f);
                 return;
             }
             bool flag = false;
-            if (!GameNetworkManager.Instance.localPlayerController.isInHangarShipRoom && CheckLineOfSightForPosition(GameNetworkManager.Instance.localPlayerController.gameplayCamera.transform.position, 45f, 70))
+            if (!playerControllerB.isInHangarShipRoom && CheckLineOfSightForPosition(playerControllerB.gameplayCamera.transform.position, 45f, 70))
             {
-                if (Vector3.Distance(base.transform.position, GameNetworkManager.Instance.localPlayerController.transform.position) < 15f)
+                if (Vector3.Distance(base.transform.position, playerControllerB.transform.position) < 15f)
                 {
-                    GameNetworkManager.Instance.localPlayerController.JumpToFearLevel(0.7f);
+                    playerControllerB.JumpToFearLevel(0.7f);
                 }
                 else
                 {
-                    GameNetworkManager.Instance.localPlayerController.JumpToFearLevel(0.4f);
+                    playerControllerB.JumpToFearLevel(0.4f);
                 }
             }
         }
@@ -402,8 +413,10 @@ namespace JPOGTrex {
                 PlayerControllerB playerControllerB = allPlayersInLineOfSight[0];
                 for (int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
                 {
+                    TrexSeePlayerEffect(allPlayersInLineOfSight[i]);
                     if (CheckIfPlayerIsmoving())
                     {
+                        TrexStartsChasingPlayerEffect(targetPlayer);
                         LogIfDebugBuild($"JPGOTrex: Saw player [{allPlayersInLineOfSight[i]}] moving");
                         targetPlayer = allPlayersInLineOfSight[i];
                         return true;
@@ -434,8 +447,6 @@ namespace JPOGTrex {
             }
             return false;
         }
-
-
 
         bool FoundClosestPlayerInRange(float range, float senseRange) {
             TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: true);
