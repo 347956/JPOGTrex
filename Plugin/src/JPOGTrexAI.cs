@@ -21,6 +21,7 @@ namespace JPOGTrex {
         public Transform turnCompass = null!;
         public Transform attackArea = null!;
         public Transform mouthGrip = null!;
+        Transform targetBone;
         private DeadBodyInfo carryingBody = null!;
         private PlayerControllerB playerInGrabAnimation = null!;
         private List<PlayerControllerB> grabbedPlayers = null!;
@@ -70,6 +71,20 @@ namespace JPOGTrex {
 
         public override void Start() {
             base.Start();
+            GameObject model = GameObject.Find("D");
+            if (model != null)
+            {
+                LogIfDebugBuild($"trying to find target bone for[{model}]");
+                targetBone = FindChildRecursive(model.transform, "Mouth");
+            }
+            if(targetBone != null)
+            {
+                LogIfDebugBuild($"found targetbone {targetBone.name}");
+            }
+            else
+            {
+                LogIfDebugBuild("no targetbone found!");
+            }
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
             SetWalkingAnimation(defaultSpeed);
@@ -86,6 +101,7 @@ namespace JPOGTrex {
 
         public override void Update() {
             base.Update();
+            UpdateMouthGripLocationToTargetBoneLocation();
             if (isEnemyDead) {
                 // For some weird reason I can't get an RPC to get called from HitEnemy() (works from other methods), so we do this workaround. We just want the enemy to stop playing the song.
                 if (!isDeadAnimationDone) {
@@ -235,6 +251,7 @@ namespace JPOGTrex {
                     if(!beginningGrab && hitConnect)
                     {
                         SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
+                        hitConnect = false;
                         break;
                     }
                     break;
@@ -246,13 +263,19 @@ namespace JPOGTrex {
                     break;
 
                 case (int)State.GrabbingPlayer:
-                    agent.speed = 0.1f;
+                    if(previousState != State.GrabbingPlayer)
+                    {
+                        LogIfDebugBuild("JPOGTrex: GrabbingPlayer State");
+                        SetWalkingAnimation(agent.speed);
+                    }
+
+                    /*agent.speed = 0.1f;
                     int enemyYRot = (int)transform.eulerAngles.y;
                     if (previousState != State.GrabbingPlayer)
                     {
                         SetWalkingAnimation(agent.speed);
                     }
-                    if (previousState != State.GrabbingPlayer && inGrabbingAnimation == false && grabbedPlayers.Count > 0)
+                    if (previousState != State.GrabbingPlayer && inGrabbingAnimation == false)
                     {
                         foreach(PlayerControllerB playerControllerB in grabbedPlayers)
                         {
@@ -264,7 +287,7 @@ namespace JPOGTrex {
                     {
                         SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
                     }
-                    previousState = State.GrabbingPlayer;
+                    previousState = State.GrabbingPlayer;*/
                     break;
                    
 
@@ -456,7 +479,7 @@ namespace JPOGTrex {
             //yield return new WaitForSeconds(0.4f);
             DoAnimationClientRpc("grabbedPlayer");
             GrabAttackHitClientRpc();
-            KillGrabbedPlayers();
+            //KillGrabbedPlayers();
             yield return new WaitForSeconds(1.2f);
             beginningGrab = false;
             yield break;
@@ -535,7 +558,8 @@ namespace JPOGTrex {
             PlayerControllerB killPlayer = StartOfRound.Instance.allPlayerScripts[playerId];
             if (!isEnemyDead)
             {
-                DoAnimationClientRpc("killEnemy");
+                LogIfDebugBuild("JPOGTrex: T-rex is still alive");
+                //DoAnimationClientRpc("killEnemy");
             }
             if (GameNetworkManager.Instance.localPlayerController == killPlayer)
             {
@@ -563,12 +587,6 @@ namespace JPOGTrex {
                 }
             }
             yield return new WaitForSeconds(3.01f);
-            if (isHungry)
-            {
-                SwitchToBehaviourClientRpc((int)State.EatingPlayer);
-                yield break;
-            }
-            DropCarriedBody();
             suspicionLevel = 2;
             inKillAnimation = false;
         }
@@ -684,13 +702,56 @@ namespace JPOGTrex {
                     PlayerControllerB playerControllerB = MeetsStandardPlayerCollisionConditions(player);
                     if (playerControllerB != null)
                     {
-                        LogIfDebugBuild($"grab attack hit player[{playerControllerB.playerClientId}]!");
+                        LogIfDebugBuild($"JPOGTrex: grab attack hit player: [{playerControllerB.playerClientId}]!");
                         timeSinceHittingLocalPlayer = 0f;
-                        grabbedPlayers.Add(playerControllerB);
+                        LogIfDebugBuild($"JPOGTrex: Killing player: [{playerControllerB.playerClientId}]!");
+                        StartCoroutine(KillPlayer((int)playerControllerB.playerClientId));
                     }
                 }
                 hitConnect = true;
             }
+        }
+
+
+        //Search Through the model to find the bone that will be used to update Mouthgrip's transform
+        private Transform FindChildRecursive(Transform parent, string childName)
+        {
+            Transform toreturn = new Transform();
+            LogIfDebugBuild($"Child name to search for: [{childName}]");
+            foreach (Transform child in parent)
+            {
+                LogIfDebugBuild($"{child.name}"); 
+                if (child.name == childName)
+                {
+                    LogIfDebugBuild($"found matching bone:[{child.name}] + [{childName}]");
+                    return child;
+                }
+                Transform found = FindChildRecursive(child, childName);
+                if (found != null)
+                {
+                    toreturn = found;
+                    return found;
+                }
+            }
+            if(toreturn != null)
+            {
+                return toreturn;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        //This is should update the mouthgrip transform of the Trex to transform of the bone.
+        //Effectively Making it look like the player's body is attached/grabbed by the T-rex's mouth during the animation instead of blinking/warping to the static location of the mouthgrip as seen in Unity
+        //Making this more generic could make it usefull to add a collider/hitbox for the mouth during the animation, this way we can check if the player is hit during the animation and killing them.
+        //This should make the kill feel smoother instead of a delayed death because you were in a collision box at some point.
+        private void UpdateMouthGripLocationToTargetBoneLocation()
+        {
+            LogIfDebugBuild("Updating MouthGripPosition");
+            mouthGrip.transform.position = targetBone.transform.position;
+            mouthGrip.transform.rotation = targetBone.transform.rotation;
+            LogIfDebugBuild($"Mouth grip: position = [{mouthGrip.transform.position}] | rotation = [mouthGrip.transform.rotation]");
         }
     }
 }
