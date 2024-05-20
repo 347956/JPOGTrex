@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using GameNetcodeStuff;
 using Unity.Netcode;
 using UnityEngine;
@@ -25,6 +26,8 @@ namespace JPOGTrex {
         private Transform mouthBone;
         private DeadBodyInfo carryingBody = null!;
         private int hittAblePlayers = 0;
+        public float scrutiny = 1f;
+        public float[] playerStealthMeters = new float[4];
 #pragma warning restore 0649
         private Coroutine grabbingPlayerCoroutine;
         private Coroutine killPlayerCoroutine;
@@ -48,6 +51,9 @@ namespace JPOGTrex {
         private bool sniffing;
         private bool beginningGrab;
         private bool hitConnect;
+        private bool lostPlayerInChase;
+        private PlayerControllerB chasingPlayer;
+        private float localPlayerTurnDistance;
 
         enum State
         {
@@ -147,17 +153,15 @@ namespace JPOGTrex {
                     if (previousState != State.SearchingForPlayer)
                     {
                         SetWalkingAnimation(agent.speed);
-                        DoAnimationClientRpc("startSearch");
+                        previousState = State.SearchingForPlayer;
                     }
-                    if (FoundClosestPlayerInRange(25f, 3f))
+                    if (LookForPlayers(10f, 2f))
                     {
                         LogIfDebugBuild("Start Target Player");
                         StopSearch(currentSearch);
-                        previousState = State.SearchingForPlayer;
                         SwitchToBehaviourClientRpc((int)State.SpottedPlayer);
-                        return;
+                        break;
                     }
-                    previousState = State.SearchingForPlayer;
                     break;
 
                 case (int)State.SpottedPlayer:
@@ -210,7 +214,7 @@ namespace JPOGTrex {
                         SetWalkingAnimation(agent.speed);
                     }
                     // Keep targeting closest player, unless they are over 20 units away and we can't see them.
-                    if (!TargetClosestPlayerInAnyCase() || (Vector3.Distance(transform.position, targetPlayer.transform.position) > 20 && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
+                    if (!TargetClosestPlayerInAnyCase() || (Vector3.Distance(transform.position, targetPlayer.transform.position) > 40 && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
                     {
                         LogIfDebugBuild("Stop Target Player");
                         StartSearch(transform.position);
@@ -339,6 +343,100 @@ namespace JPOGTrex {
             }
         }
 
+
+
+        //Player Detection &
+
+        private void TrexSeePlayerEffect()
+        {
+            if (GameNetworkManager.Instance.localPlayerController.isPlayerDead || GameNetworkManager.Instance.localPlayerController.isInsideFactory)
+            {
+                return;
+            }
+            if (currentBehaviourStateIndex == 1 && chasingPlayer == GameNetworkManager.Instance.localPlayerController && !lostPlayerInChase)
+            {
+                GameNetworkManager.Instance.localPlayerController.IncreaseFearLevelOverTime(2.0f);
+                return;
+            }
+            bool flag = false;
+            if (!GameNetworkManager.Instance.localPlayerController.isInHangarShipRoom && CheckLineOfSightForPosition(GameNetworkManager.Instance.localPlayerController.gameplayCamera.transform.position, 45f, 70))
+            {
+                if (Vector3.Distance(base.transform.position, GameNetworkManager.Instance.localPlayerController.transform.position) < 15f)
+                {
+                    GameNetworkManager.Instance.localPlayerController.JumpToFearLevel(0.7f);
+                }
+                else
+                {
+                    GameNetworkManager.Instance.localPlayerController.JumpToFearLevel(0.4f);
+                }
+            }
+        }
+
+
+        private bool LookForPlayers(float range, float senseRange)
+        {
+            if (FoundClosestPlayerInRange(range, senseRange))
+            {
+                return true;
+            }
+            else if (CheckLineOfSight())
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+
+        //Copied from the gian but edited
+        //The Trex should spot players but less far and well as the giant
+        //Going for the don't move = can't see trope
+        private bool CheckLineOfSight()
+        {
+            PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(30f, 70, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
+            if (allPlayersInLineOfSight != null)
+            {
+                LogIfDebugBuild("Looking for moving players in line of sight");
+                PlayerControllerB playerControllerB = allPlayersInLineOfSight[0];
+                for (int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
+                {
+                    if (CheckIfPlayerIsmoving())
+                    {
+                        LogIfDebugBuild($"JPGOTrex: Saw player [{allPlayersInLineOfSight[i]}] moving");
+                        targetPlayer = allPlayersInLineOfSight[i];
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+        private bool CheckIfPlayerIsmoving()
+        {
+            LogIfDebugBuild("Checking if player is moving");
+            localPlayerTurnDistance += StartOfRound.Instance.playerLookMagnitudeThisFrame;
+            if (localPlayerTurnDistance > 0.1f && Vector3.Distance(GameNetworkManager.Instance.localPlayerController.transform.position, base.transform.position) < 10f)
+            {
+                return true;
+            }
+            if (GameNetworkManager.Instance.localPlayerController.performingEmote)
+            {
+                return true;
+            }
+            if (Time.realtimeSinceStartup - StartOfRound.Instance.timeAtMakingLastPersonalMovement < 0.25f)
+            {
+                return true;
+            }
+            if (GameNetworkManager.Instance.localPlayerController.timeSincePlayerMoving < 0.05f)
+            {
+                return true;
+            }
+            return false;
+        }
+
+
+
         bool FoundClosestPlayerInRange(float range, float senseRange) {
             TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: true);
             if (targetPlayer == null) {
@@ -369,7 +467,7 @@ namespace JPOGTrex {
         //Simple method that sets the walking animation of the T-rex based on it's speed.
         //This way a more slowed down walking animation or sped up running animation can be applied.
         //Should be called after the speed of the current behaviour state has been set.
-        public void SetWalkingAnimation(float currentSpeed)
+        private void SetWalkingAnimation(float currentSpeed)
         {
             if (currentSpeed == 0f)
             {
