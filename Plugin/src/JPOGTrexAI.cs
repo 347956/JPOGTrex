@@ -21,13 +21,13 @@ namespace JPOGTrex {
         public Transform turnCompass = null!;
         public Transform attackArea = null!;
         public Transform mouthGrip = null!;
-        Transform targetBone;
+        public SphereCollider mouthAttackHitBox = null!;
+        private Transform mouthBone;
         private DeadBodyInfo carryingBody = null!;
-        private PlayerControllerB playerInGrabAnimation = null!;
-        private List<PlayerControllerB> grabbedPlayers = null!;
         private int hittAblePlayers = 0;
 #pragma warning restore 0649
         private Coroutine grabbingPlayerCoroutine;
+        private Coroutine killPlayerCoroutine;
         public int suspicionLevel;
         private float timeSinceHittingLocalPlayer;
         private float timeSinceNewRandPos;
@@ -71,20 +71,7 @@ namespace JPOGTrex {
 
         public override void Start() {
             base.Start();
-            GameObject model = GameObject.Find("D");
-            if (model != null)
-            {
-                LogIfDebugBuild($"trying to find target bone for[{model}]");
-                targetBone = FindChildRecursive(model.transform, "Mouth");
-            }
-            if(targetBone != null)
-            {
-                LogIfDebugBuild($"found targetbone {targetBone.name}");
-            }
-            else
-            {
-                LogIfDebugBuild("no targetbone found!");
-            }
+            SetBones();
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
             SetWalkingAnimation(defaultSpeed);
@@ -97,6 +84,24 @@ namespace JPOGTrex {
             currentBehaviourStateIndex = (int)State.SearchingForPlayer;
             // We make the enemy start searching. This will make it start wandering around.
             StartSearch(transform.position);
+        }
+
+        private void SetBones()
+        {
+            GameObject model = GameObject.Find("D");
+            if (model != null)
+            {
+                LogIfDebugBuild($"trying to find target bone for the mouthBone from: [{model}]");
+                mouthBone = FindChildRecursive(model.transform, "Mouth");
+            }
+            if (mouthBone != null)
+            {
+                LogIfDebugBuild($"found targetbone {mouthBone.name}");
+            }
+            else
+            {
+                LogIfDebugBuild("no targetbone found!");
+            }
         }
 
         public override void Update() {
@@ -214,11 +219,13 @@ namespace JPOGTrex {
                         return;
                     }
                     SetDestinationToPosition(targetPlayer.transform.position);
-                    CheckForPlayersInRangeOfGrabAttack();
+                    CheckForPlayersInRangeOfGrabAttackClientRPC();
                     if(hittAblePlayers > 0)
                     {
                         SwitchToBehaviourClientRpc((int)State.GrabPlayer);
                         previousState = State.ChasingPlayer;
+                        hittAblePlayers = 0;
+                        return;
                     }
 
                     previousState = State.ChasingPlayer;
@@ -238,13 +245,14 @@ namespace JPOGTrex {
                         previousState = State.GrabPlayer;
                     }
                     previousState = State.GrabPlayer;
-                    if (!beginningGrab)
+                    if (!beginningGrab && timeSinceHittingLocalPlayer >= 4f)
                     {
                         beginningGrab = true;
                         StartCoroutine(BeginGrab());
                     }
                     if (!hitConnect)
                     {
+                        StopCoroutine(BeginGrab());
                         SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
                         break;
                     }
@@ -267,27 +275,8 @@ namespace JPOGTrex {
                     {
                         LogIfDebugBuild("JPOGTrex: GrabbingPlayer State");
                         SetWalkingAnimation(agent.speed);
+                        StartCoroutine(ShakeGrabbedBody());
                     }
-
-                    /*agent.speed = 0.1f;
-                    int enemyYRot = (int)transform.eulerAngles.y;
-                    if (previousState != State.GrabbingPlayer)
-                    {
-                        SetWalkingAnimation(agent.speed);
-                    }
-                    if (previousState != State.GrabbingPlayer && inGrabbingAnimation == false)
-                    {
-                        foreach(PlayerControllerB playerControllerB in grabbedPlayers)
-                        {
-                            BeginGrabbingPlayer(playerControllerB, transform.position, enemyYRot);
-                        }                       
-                        inGrabbingAnimation = true;
-                    }
-                    if (!inGrabbingAnimation)
-                    {
-                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
-                    }
-                    previousState = State.GrabbingPlayer;*/
                     break;
                    
 
@@ -296,9 +285,18 @@ namespace JPOGTrex {
                     if (previousState != State.EatingPlayer)
                     {
                         SetWalkingAnimation(agent.speed);
+                        previousState = State.EatingPlayer;
                     }
-                    DoAnimationClientRpc("eatingPlayuer");
-                    previousState = State.EatingPlayer;
+                    if(previousState != State.EatingPlayer && isHungry)
+                    {
+                        inEatingAnimation = true;
+                        StartCoroutine(EatPlayer(carryingBody));
+                        isHungry = false;
+                    }
+                    if (!inEatingAnimation)
+                    {
+                        SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
+                    }
                     break;
 
                 case (int)State.Idle:
@@ -423,29 +421,6 @@ namespace JPOGTrex {
             BeginGrab();
         }
 
-/*        public void StickingInFrontOfPlayer() {
-            // We only run this method for the host because I'm paranoid about randomness not syncing I guess
-            // This is fine because the game does sync the position of the enemy.
-            // Also the attack is a ClientRpc so it should always sync
-            if (targetPlayer == null || !IsOwner) {
-                return;
-            }
-            if (timeSinceNewRandPos > 0.7f) {
-                timeSinceNewRandPos = 0;
-                if (enemyRandom.Next(0, 5) == 0) {
-                    // Attack
-                    StartCoroutine(GrabAttack());
-                }
-                else {
-                    // Go in front of player
-                    positionRandomness = new Vector3(enemyRandom.Next(-2, 2), 0, enemyRandom.Next(-2, 2));
-                    StalkPos = targetPlayer.transform.position - Vector3.Scale(new Vector3(-5, 0, -5), targetPlayer.transform.forward) + positionRandomness;
-                }
-                SetDestinationToPosition(StalkPos, checkForPath: false);
-            }
-        }*/
-
-
         private IEnumerator FoundPlayer()
         {
 
@@ -476,32 +451,12 @@ namespace JPOGTrex {
         {
             LogIfDebugBuild("JPOGTrex: BeginningGrab");
             DoAnimationClientRpc("grabPlayer");
-            //yield return new WaitForSeconds(0.4f);
             DoAnimationClientRpc("grabbedPlayer");
             GrabAttackHitClientRpc();
-            //KillGrabbedPlayers();
             yield return new WaitForSeconds(1.2f);
             beginningGrab = false;
             yield break;
         }
-
-        /*        IEnumerator GrabAttack() {
-                    SwitchToBehaviourClientRpc((int)State.GrabPlayer);
-                    StalkPos = targetPlayer.transform.position;
-                    SetDestinationToPosition(StalkPos);
-                    yield return new WaitForSeconds(0.5f);
-                    if (isEnemyDead) {
-                        yield break;
-                    }
-                    yield return new WaitForSeconds(0.35f);
-                    SwingAttackHitClientRpc();
-                    // In case the player has already gone away, we just yield break (basically same as return, but for IEnumerator)
-                    if (currentBehaviourStateIndex != (int)State.GrabbedPlayer)
-                    {
-                        yield break;
-                    }
-                    SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
-                }*/
 
         public override void OnCollideWithPlayer(Collider other)
         {
@@ -519,134 +474,78 @@ namespace JPOGTrex {
             }
         }
 
-        /*        public override void HitEnemy(int force = 1, PlayerControllerB? playerWhoHit = null, bool playHitSFX = false, int hitID = -1) {
-                    base.HitEnemy(force, playerWhoHit, playHitSFX, hitID);
-                    if (isEnemyDead) {
-                        return;
-                    }
-                    enemyHP -= force;
-                    if (IsOwner) {
-                        if (enemyHP <= 0 && !isEnemyDead) {
-                            // Our death sound will be played through creatureVoice when KillEnemy() is called.
-                            // KillEnemy() will also attempt to call creatureAnimator.SetTrigger("KillEnemy"),
-                            // so we don't need to call a death animation ourselves.
-
-                            StopCoroutine(GrabAttack());
-                            // We need to stop our search coroutine, because the game does not do that by default.
-                            StopCoroutine(searchCoroutine);
-                            KillEnemyOnOwnerClient();
-                        }
-                    }
-                }*/
-
-
-        private void KillGrabbedPlayers()
+        public override void HitEnemy(int force = 1, PlayerControllerB? playerWhoHit = null, bool playHitSFX = false, int hitID = -1)
         {
-            foreach (PlayerControllerB grabbedPlayer in grabbedPlayers)
+            base.HitEnemy(force, playerWhoHit, playHitSFX, hitID);
+            if (isEnemyDead)
             {
-                KillPlayer((int)grabbedPlayer.playerClientId);
+                return;
             }
-        }
-
-        private IEnumerator KillPlayer(int playerId)
-        {
+            enemyHP -= force;
             if (IsOwner)
             {
-                agent.speed = Mathf.Clamp(agent.speed, 2f, 0f);
-            }
-            LogIfDebugBuild($"Killing player: [{playerId}]");
-            PlayerControllerB killPlayer = StartOfRound.Instance.allPlayerScripts[playerId];
-            if (!isEnemyDead)
-            {
-                LogIfDebugBuild("JPOGTrex: T-rex is still alive");
-                //DoAnimationClientRpc("killEnemy");
-            }
-            if (GameNetworkManager.Instance.localPlayerController == killPlayer)
-            {
-                killPlayer.KillPlayer(Vector3.zero, spawnBody: true, CauseOfDeath.Mauling);
-            }
-            float startTime = Time.timeSinceLevelLoad;
-            yield return new WaitUntil(() => killPlayer.deadBody != null || Time.timeSinceLevelLoad - startTime > 2f);
-            if (killPlayer.deadBody == null)
-            {
-                LogIfDebugBuild("JPOGTrex: Player body was not spawned or found withing 2 seconds");
-                killPlayer.inAnimationWithEnemy = null;
-                inKillAnimation = false;
-                yield break;
-            }
-            TakeBodyInMouth(killPlayer.deadBody);
-            startTime = Time.timeSinceLevelLoad;
-            Quaternion rotateTo = Quaternion.Euler(new Vector3(0f, RoundManager.Instance.YRotationThatFacesTheFarthestFromPosition(base.transform.position + Vector3.up * 0.6f), 0f));
-            Quaternion rotateFrom = base.transform.rotation;
-            while (Time.timeSinceLevelLoad - startTime < 2f)
-            {
-                yield return null;
-                if (base.IsOwner)
+                if (enemyHP <= 0 && !isEnemyDead)
                 {
-                    base.transform.rotation = Quaternion.RotateTowards(rotateFrom, rotateTo, 60f * Time.deltaTime);
+                    // Our death sound will be played through creatureVoice when KillEnemy() is called.
+                    // KillEnemy() will also attempt to call creatureAnimator.SetTrigger("KillEnemy"),
+                    // so we don't need to call a death animation ourselves.
+
+                    StopCoroutine(BeginGrab());
+                    // We need to stop our search coroutine, because the game does not do that by default.
+                    StopCoroutine(searchCoroutine);
+                    KillEnemyOnOwnerClient();
                 }
             }
-            yield return new WaitForSeconds(3.01f);
-            suspicionLevel = 2;
-            inKillAnimation = false;
         }
-
-
-        private void BeginGrabbingPlayer(PlayerControllerB playerBeingGrabbed, Vector3 enemyPosition, int enemyYRot)
-        {
             
-            inSpecialAnimationWithPlayer = playerBeingGrabbed;
-            inSpecialAnimationWithPlayer.inSpecialInteractAnimation = true;
-            inSpecialAnimationWithPlayer.inAnimationWithEnemy = this;
-/*            if (grabbingPlayerCoroutine != null)
-            {
-                StopCoroutine(grabbingPlayerCoroutine);
-            }*/
-            grabbingPlayerCoroutine = StartCoroutine(GrabbingPlayerAnimation(playerBeingGrabbed, enemyPosition, enemyYRot));
-        }
 
-        private IEnumerator GrabbingPlayerAnimation(PlayerControllerB playerBeingGrabbed, Vector3 enemyPosition, int enemyYRot)
+        private IEnumerator ShakeGrabbedBody()
         {
-            //lookingAtTarget = false;
             DoAnimationClientRpc("grabbingPlayer");
-            inGrabbingAnimation = true;
-            inSpecialAnimation = true;
-            playerBeingGrabbed.isInElevator = false;
-            playerBeingGrabbed.isInHangarShipRoom = false;
-            playerBeingGrabbed.BreakLegsSFXClientRpc();
-            playerBeingGrabbed.DropBlood(enemyPosition, true, true);
-            StartCoroutine(KillPlayer((int)playerBeingGrabbed.playerClientId));
-            yield return new WaitForSeconds(2.7f);
-            if (isHungry && carryingBody != null)
+            yield return new WaitForSeconds(2.6f);
+            if(isHungry && carryingBody != null)
             {
-                inGrabbingAnimation = false;
-                inSpecialAnimation = true;
-                StartCoroutine(EatPlayer(carryingBody));
+                SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
+                yield break;
             }
-            inGrabbingAnimation = false;
-            inSpecialAnimation = false;
+            else
+            {
+                DropCarriedBody();
+            }
         }
 
         private IEnumerator EatPlayer(DeadBodyInfo bodyToEat)
         {
+            if(bodyToEat == null)
+            {
+                yield break;
+            }
             LogIfDebugBuild($"JPOGTrex: begin eating body [{bodyToEat.playerObjectId}]");
-            inEatingAnimation = true;
             DoAnimationClientRpc("eatingPlayer");
-/*            Vector3 startPostion  = base.transform.position;
-            Quaternion starRoation = base.transform.rotation;*/
-
             bodyToEat.MakeCorpseBloody();
             yield return new WaitForSeconds(5.7f);
             bodyToEat.DeactivateBody(false);
+            inEatingAnimation = false;
+            yield break;
+        }
+        public override void KillEnemy(bool destroy = false)
+        {
+            DoAnimationClientRpc("killEnemy");
+            creatureVoice.Stop();
+            creatureSFX.Stop();
+            base.KillEnemy(destroy);
         }
 
 
         private void TakeBodyInMouth(DeadBodyInfo body)
         {
-            carryingBody = body;
-            carryingBody.attachedTo = mouthGrip;
-            carryingBody.attachedLimb = body.bodyParts[5];
-            carryingBody.matchPositionExactly = true;
+            if (!(body == null))
+            {
+                carryingBody = body;
+                carryingBody.attachedTo = mouthGrip;
+                carryingBody.attachedLimb = body.bodyParts[5];
+                carryingBody.matchPositionExactly = true;
+            }
         }
         private void DropCarriedBody()
         {
@@ -661,7 +560,8 @@ namespace JPOGTrex {
         }
 
 
-        private void CheckForPlayersInRangeOfGrabAttack()
+        [ClientRpc]
+        private void CheckForPlayersInRangeOfGrabAttackClientRPC()
         {
             LogIfDebugBuild("Checking if Player can be grabbed");
             int playerLayer = 1 << 3;
@@ -710,6 +610,11 @@ namespace JPOGTrex {
                 }
                 hitConnect = true;
             }
+            else
+            {
+                LogIfDebugBuild("Grab attack hit 0 players");
+                hitConnect = false;
+            }
         }
 
 
@@ -748,10 +653,128 @@ namespace JPOGTrex {
         //This should make the kill feel smoother instead of a delayed death because you were in a collision box at some point.
         private void UpdateMouthGripLocationToTargetBoneLocation()
         {
-            LogIfDebugBuild("Updating MouthGripPosition");
-            mouthGrip.transform.position = targetBone.transform.position;
-            mouthGrip.transform.rotation = targetBone.transform.rotation;
-            LogIfDebugBuild($"Mouth grip: position = [{mouthGrip.transform.position}] | rotation = [mouthGrip.transform.rotation]");
+            //LogIfDebugBuild("Updating MouthGripPosition");
+            mouthGrip.transform.position = mouthBone.transform.position;
+            mouthGrip.transform.rotation = mouthBone.transform.rotation;
+            //LogIfDebugBuild($"Mouth grip: position = [{mouthGrip.transform.position}] | rotation = [{mouthGrsip.transform.rotation}]");
+        }
+
+       //Networking stuff and killPlayer
+
+        [ClientRpc]
+        public void CancelKillAnimationWithPlayerClientRpc(int playerObjectId)
+        {
+            NetworkManager networkManager = base.NetworkManager;
+            if ((object)networkManager != null && networkManager.IsListening)
+            {
+                if (__rpc_exec_stage != __RpcExecStage.Client && (networkManager.IsServer || networkManager.IsHost))
+                {
+                    ClientRpcParams clientRpcParams = default(ClientRpcParams);
+                    FastBufferWriter bufferWriter = __beginSendClientRpc(2798326268u, clientRpcParams, RpcDelivery.Reliable);
+                    BytePacker.WriteValueBitPacked(bufferWriter, playerObjectId);
+                    __endSendClientRpc(ref bufferWriter, 2798326268u, clientRpcParams, RpcDelivery.Reliable);
+                }
+                if (__rpc_exec_stage == __RpcExecStage.Client && (networkManager.IsClient || networkManager.IsHost))
+                {
+                    StartOfRound.Instance.allPlayerScripts[playerObjectId].inAnimationWithEnemy = null;
+                }
+            }
+        }
+
+
+        [ServerRpc(RequireOwnership = false)]
+        public void KillPlayerServerRpc(int playerId)
+        {
+            NetworkManager networkManager = base.NetworkManager;
+            if((object)networkManager == null || !networkManager.IsListening) {
+                return;
+            }
+            if(__rpc_exec_stage != __RpcExecStage.Server && (networkManager.IsClient || networkManager.IsHost)) {
+                ServerRpcParams serverRpcParams = default(ServerRpcParams);
+                FastBufferWriter bufferWriter = __beginSendServerRpc(998670557u, serverRpcParams, RpcDelivery.Reliable);
+                BytePacker.WriteValueBitPacked(bufferWriter, playerId);
+                __endSendServerRpc(ref bufferWriter, 998670557u, serverRpcParams, RpcDelivery.Reliable);
+            }
+            if (__rpc_exec_stage == __RpcExecStage.Server && (networkManager.IsServer || networkManager.IsHost))
+            {
+                if (!inKillAnimation)
+                {
+                    inKillAnimation = true;
+                    KillPlayerClientRpc(playerId);
+                }
+                else
+                {
+                    CancelKillAnimationWithPlayerClientRpc(playerId);
+                }
+            }
+        }
+        [ClientRpc]
+        public void KillPlayerClientRpc(int playerId)
+        {
+            NetworkManager networkManager = base.NetworkManager;
+            if ((object)networkManager == null || !networkManager.IsListening)
+            {
+                return;
+            }
+            if (__rpc_exec_stage != __RpcExecStage.Client && (networkManager.IsServer || networkManager.IsHost))
+            {
+                ClientRpcParams clientRpcParams = default(ClientRpcParams);
+                FastBufferWriter bufferWriter = __beginSendClientRpc(2252497379u, clientRpcParams, RpcDelivery.Reliable);
+                BytePacker.WriteValueBitPacked(bufferWriter, playerId);
+                __endSendClientRpc(ref bufferWriter, 2252497379u, clientRpcParams, RpcDelivery.Reliable);
+            }
+            if (__rpc_exec_stage == __RpcExecStage.Client && (networkManager.IsClient || networkManager.IsHost))
+            {
+                LogIfDebugBuild("Kill player rpc");
+                if (killPlayerCoroutine != null)
+                {
+                    StopCoroutine(killPlayerCoroutine);
+                }
+                killPlayerCoroutine = StartCoroutine(KillPlayer(playerId));
+            }
+        }
+
+        private IEnumerator KillPlayer(int playerId)
+        {
+            if (IsOwner)
+            {
+                agent.speed = Mathf.Clamp(agent.speed, 2f, 0f);
+            }
+            LogIfDebugBuild($"Killing player: [{playerId}]");
+            PlayerControllerB killPlayer = StartOfRound.Instance.allPlayerScripts[playerId];
+            if (!isEnemyDead)
+            {
+                LogIfDebugBuild("JPOGTrex: T-rex is still alive");
+                //DoAnimationClientRpc("killEnemy");
+            }
+            if (GameNetworkManager.Instance.localPlayerController == killPlayer)
+            {
+                killPlayer.KillPlayer(Vector3.zero, spawnBody: true, CauseOfDeath.Mauling);
+            }
+            float startTime = Time.timeSinceLevelLoad;
+            yield return new WaitUntil(() => killPlayer.deadBody != null || Time.timeSinceLevelLoad - startTime > 2f);
+            if (killPlayer.deadBody == null)
+            {
+                LogIfDebugBuild("JPOGTrex: Player body was not spawned or found withing 2 seconds");
+                killPlayer.inAnimationWithEnemy = null;
+                inKillAnimation = false;
+                yield break;
+            }
+            TakeBodyInMouth(killPlayer.deadBody);
+            startTime = Time.timeSinceLevelLoad;
+            Quaternion rotateTo = Quaternion.Euler(new Vector3(0f, RoundManager.Instance.YRotationThatFacesTheFarthestFromPosition(base.transform.position + Vector3.up * 0.6f), 0f));
+            Quaternion rotateFrom = base.transform.rotation;
+            while (Time.timeSinceLevelLoad - startTime < 2f)
+            {
+                yield return null;
+                if (base.IsOwner)
+                {
+                    base.transform.rotation = Quaternion.RotateTowards(rotateFrom, rotateTo, 60f * Time.deltaTime);
+                }
+            }
+            yield return new WaitForSeconds(3.01f);
+            suspicionLevel = 2;
+            inKillAnimation = false;
         }
     }
 }
