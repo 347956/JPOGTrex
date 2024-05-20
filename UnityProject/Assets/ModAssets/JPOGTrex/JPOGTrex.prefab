@@ -928,6 +928,59 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!1 &4321683167818685681
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2789171439590536909}
+  - component: {fileID: 8201503328580270562}
+  m_Layer: 19
+  m_Name: MouthAttackHitBox
+  m_TagString: Enemy
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2789171439590536909
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4321683167818685681}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.567, y: 3.496, z: 3.97}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5329222984914797012}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!135 &8201503328580270562
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4321683167818685681}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 1.8474132
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &4837219077135662770
 GameObject:
   m_ObjectHideFlags: 0
@@ -1249,6 +1302,7 @@ Transform:
   - {fileID: 5679349036219040506}
   - {fileID: 5751709844823945800}
   - {fileID: 2147176701623385217}
+  - {fileID: 2789171439590536909}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!65 &3202872475098061070
@@ -1472,6 +1526,7 @@ MonoBehaviour:
   turnCompass: {fileID: 7991254649779874056}
   attackArea: {fileID: 7852763459864048508}
   mouthGrip: {fileID: 2147176701623385217}
+  mouthAttackHitBox: {fileID: 2789171439590536909}
   suspicionLevel: 0
 --- !u!114 &3735662421254837734
 MonoBehaviour:
@@ -1843,7 +1898,7 @@ Transform:
   m_GameObject: {fileID: 7428005549773019969}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.56, z: 4.49}
+  m_LocalPosition: {x: 0, y: 0.79, z: 1.54}
   m_LocalScale: {x: 10, y: 2, z: 6.3999996}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -1864,7 +1919,7 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
