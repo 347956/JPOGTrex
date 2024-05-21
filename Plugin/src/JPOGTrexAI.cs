@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using GameNetcodeStuff;
+using LethalLib.Modules;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -23,8 +24,9 @@ namespace JPOGTrex {
         public Transform attackArea = null!;
         public Transform mouthGrip = null!;
         public SphereCollider mouthAttackHitBox = null!;
-        private Transform mouthBone;
+        private Transform? mouthBone;
         private DeadBodyInfo carryingBody = null!;
+        private List<DeadBodyInfo>carryingBodies = new List<DeadBodyInfo>();
         private int hittAblePlayers = 0;
         public float scrutiny = 1f;
         public float[] playerStealthMeters = new float[4];
@@ -54,6 +56,7 @@ namespace JPOGTrex {
         private bool lostPlayerInChase;
         private PlayerControllerB chasingPlayer;
         private float localPlayerTurnDistance;
+        private bool spottedPlayer;
 
         enum State
         {
@@ -155,7 +158,9 @@ namespace JPOGTrex {
                         SetWalkingAnimation(agent.speed);
                         previousState = State.SearchingForPlayer;
                     }
-                    if (LookForPlayers(10f, 2f))
+                    FoundClosestPlayerInRangeServerRpc();
+                    CheckLineOfSightServerRpc();
+                    if (targetPlayer != null)
                     {
                         LogIfDebugBuild("Start Target Player");
                         StopSearch(currentSearch);
@@ -172,6 +177,7 @@ namespace JPOGTrex {
                         LogIfDebugBuild("JPOGTrex: Spotted Player!");
                         SetWalkingAnimation(agent.speed);
                         StartCoroutine(FoundPlayer());
+                        TrexStartsChasingPlayerEffect(targetPlayer);
                         isSniffingStarted = true;
 
                     }
@@ -220,10 +226,11 @@ namespace JPOGTrex {
                         StartSearch(transform.position);
                         SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                         previousState = State.ChasingPlayer;
+                        targetPlayer = null;
                         return;
                     }
                     SetDestinationToPosition(targetPlayer.transform.position);
-                    CheckForPlayersInRangeOfGrabAttackClientRPC();
+                    CheckForPlayersInRangeOfGrabAttackServerRpc();
                     if(hittAblePlayers > 0)
                     {
                         SwitchToBehaviourClientRpc((int)State.GrabPlayer);
@@ -262,6 +269,7 @@ namespace JPOGTrex {
                     }
                     if(!beginningGrab && hitConnect)
                     {
+                        StopCoroutine(BeginGrab());
                         SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
                         hitConnect = false;
                         break;
@@ -343,119 +351,42 @@ namespace JPOGTrex {
             }
         }
 
-
-
-        //Player Detection &
-        private void TrexStartsChasingPlayerEffect(PlayerControllerB playerControllerB)
-        {
-            if (playerControllerB.isPlayerDead || playerControllerB.isInsideFactory)
-            {
-                return;
-            }
-            if (currentBehaviourStateIndex == (int)State.SearchingForPlayer && playerControllerB == GameNetworkManager.Instance.localPlayerController)
-            {
-                targetPlayer.JumpToFearLevel(10.0f);
-                return;
-            }
-        }
-        private void TrexSeePlayerEffect(PlayerControllerB playerControllerB)
-        {
-            if (playerControllerB.isPlayerDead || playerControllerB.isInsideFactory)
-            {
-                return;
-            }
-            if (playerControllerB == GameNetworkManager.Instance.localPlayerController)
-            {
-                playerControllerB.IncreaseFearLevelOverTime(2.0f);
-                return;
-            }
-            bool flag = false;
-            if (!playerControllerB.isInHangarShipRoom && CheckLineOfSightForPosition(playerControllerB.gameplayCamera.transform.position, 45f, 70))
-            {
-                if (Vector3.Distance(base.transform.position, playerControllerB.transform.position) < 15f)
-                {
-                    playerControllerB.JumpToFearLevel(0.7f);
-                }
-                else
-                {
-                    playerControllerB.JumpToFearLevel(0.4f);
-                }
-            }
-        }
-
-
-        private bool LookForPlayers(float range, float senseRange)
-        {
-            if (FoundClosestPlayerInRange(range, senseRange))
-            {
-                return true;
-            }
-            else if (CheckLineOfSight())
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-
         //Copied from the gian but edited
         //The Trex should spot players but less far and well as the giant
         //Going for the don't move = can't see trope
-        private bool CheckLineOfSight()
-        {
-            PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(30f, 70, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
-            if (allPlayersInLineOfSight != null)
-            {
-                LogIfDebugBuild("Looking for moving players in line of sight");
-                PlayerControllerB playerControllerB = allPlayersInLineOfSight[0];
-                for (int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
-                {
-                    TrexSeePlayerEffect(allPlayersInLineOfSight[i]);
-                    if (CheckIfPlayerIsmoving())
-                    {
-                        TrexStartsChasingPlayerEffect(targetPlayer);
-                        LogIfDebugBuild($"JPGOTrex: Saw player [{allPlayersInLineOfSight[i]}] moving");
-                        targetPlayer = allPlayersInLineOfSight[i];
-                        return true;
-                    }
-                }
-            }
-            return false;
+        [ServerRpc(RequireOwnership = false)]
+        private void CheckLineOfSightServerRpc(){
+
+            CheckLineOfSightClientRpc();
         }
-        private bool CheckIfPlayerIsmoving()
+        [ClientRpc]
+        private void CheckLineOfSightClientRpc()
         {
-            LogIfDebugBuild("Checking if player is moving");
-            localPlayerTurnDistance += StartOfRound.Instance.playerLookMagnitudeThisFrame;
-            if (localPlayerTurnDistance > 0.1f && Vector3.Distance(GameNetworkManager.Instance.localPlayerController.transform.position, base.transform.position) < 10f)
-            {
-                return true;
-            }
-            if (GameNetworkManager.Instance.localPlayerController.performingEmote)
-            {
-                return true;
-            }
-            if (Time.realtimeSinceStartup - StartOfRound.Instance.timeAtMakingLastPersonalMovement < 0.25f)
-            {
-                return true;
-            }
-            if (GameNetworkManager.Instance.localPlayerController.timeSincePlayerMoving < 0.05f)
-            {
-                return true;
-            }
-            return false;
+            CheckLineOfSight();
         }
 
-        bool FoundClosestPlayerInRange(float range, float senseRange) {
-            TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: true);
-            if (targetPlayer == null) {
-                // Couldn't see a player, so we check if a player is in sensing distance instead
-                TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: false);
-                range = senseRange;
-            }
-            return targetPlayer != null && Vector3.Distance(transform.position, targetPlayer.transform.position) < range;
+
+        [ServerRpc(RequireOwnership = false)]
+        private void CheckIfPlayerIsMovingServerRpc(int playerId)
+        {
+
+            CheckIfPlayerIsMovingClientRpc(playerId);
+        }
+        [ClientRpc]
+        private void CheckIfPlayerIsMovingClientRpc(int playerId)
+        {
+            CheckIfPlayerIsmoving();
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void FoundClosestPlayerInRangeServerRpc()
+        {
+            FoundClosestPlayerInRangeClientRpc();
+        }
+        [ClientRpc]
+        private void FoundClosestPlayerInRangeClientRpc()
+        {
+            FoundClosestPlayerInRange();
         }
 
         bool TargetClosestPlayerInAnyCase() {
@@ -561,7 +492,7 @@ namespace JPOGTrex {
             LogIfDebugBuild("JPOGTrex: BeginningGrab");
             DoAnimationClientRpc("grabPlayer");
             DoAnimationClientRpc("grabbedPlayer");
-            GrabAttackHitClientRpc();
+            GrabAttackHitServerRpc();
             yield return new WaitForSeconds(1.2f);
             beginningGrab = false;
             yield break;
@@ -619,7 +550,7 @@ namespace JPOGTrex {
             }
             else
             {
-                DropCarriedBody();
+                DropcarriedBodyServerRpc();
             }
         }
 
@@ -643,29 +574,6 @@ namespace JPOGTrex {
             creatureVoice.Stop();
             creatureSFX.Stop();
             base.KillEnemy(destroy);
-        }
-
-
-        private void TakeBodyInMouth(DeadBodyInfo body)
-        {
-            if (!(body == null))
-            {
-                carryingBody = body;
-                carryingBody.attachedTo = mouthGrip;
-                carryingBody.attachedLimb = body.bodyParts[5];
-                carryingBody.matchPositionExactly = true;
-            }
-        }
-        private void DropCarriedBody()
-        {
-            if(!(carryingBody == null))
-            {
-                carryingBody.speedMultiplier = 12f;
-                carryingBody.attachedTo = null;
-                carryingBody.attachedLimb = null;
-                carryingBody.matchPositionExactly = false;
-                carryingBody = null;
-            }
         }
 
         //Search Through the model to find the bone that will be used to update Mouthgrip's transform
@@ -711,12 +619,188 @@ namespace JPOGTrex {
 
         //Networking stuff and killPlayer
 
+
+
+        [ServerRpc(RequireOwnership = false)]
+        private void CheckForPlayersInRangeOfGrabAttackServerRpc()
+        {
+            CheckForPlayersInRangeOfGrabAttackClientRPC();
+        }
+
+
         [ClientRpc]
         private void CheckForPlayersInRangeOfGrabAttackClientRPC()
         {
-            LogIfDebugBuild("Checking if Player can be grabbed");
+            CheckForPlayersInRangeOfGrabAttack();
+        }
+
+        [ClientRpc]
+        public void DoAnimationClientRpc(string animationName)
+        {
+            LogIfDebugBuild($"Animation: {animationName}");
+            creatureAnimator.SetTrigger(animationName);
+        }
+
+
+
+        [ServerRpc(RequireOwnership = false)]
+        public void GrabAttackHitServerRpc()
+        {
+            GrabAttackHitClientRpc();
+        }
+
+        [ClientRpc]
+        public void GrabAttackHitClientRpc()
+        {
+            GrabAttackHit();
+        }
+
+        [ClientRpc]
+        public void CancelKillAnimationWithPlayerClientRpc(int playerObjectId)
+        {
+            StartOfRound.Instance.allPlayerScripts[playerObjectId].inAnimationWithEnemy = null;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void BeginGrabAttackServerRpc()
+        {
+            BeginGrabAttackClientRpc();
+        }
+        [ClientRpc]
+        public void BeginGrabAttackClientRpc()
+        {
+            StartCoroutine(BeginGrab());
+        }
+        [ServerRpc(RequireOwnership = false)]
+        public void StopGrabAttackServerRpc()
+        {
+            StopGrabAttackClientRpc();
+        }
+        [ClientRpc]
+        public void StopGrabAttackClientRpc()
+        {
+            StopCoroutine(BeginGrab());
+            beginningGrab = false;
+        }
+
+
+        [ServerRpc(RequireOwnership = false)]
+        public void KillPlayerServerRpc(int playerId)
+        {
+            if (!inKillAnimation)
+            {
+                inKillAnimation = true;
+                KillPlayerClientRpc(playerId);
+            }
+            else
+            {
+                CancelKillAnimationWithPlayerClientRpc(playerId);
+            }
+        }
+
+        [ClientRpc]
+        public void KillPlayerClientRpc(int playerId)
+        {
+            LogIfDebugBuild("Kill player rpc");
+            if (killPlayerCoroutine != null)
+            {
+                StopCoroutine(killPlayerCoroutine);
+            }
+            killPlayerCoroutine = StartCoroutine(KillPlayer(playerId));
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void TakeBodyInMouthServerRpc(int killPlayerId)
+        {
+            TakeBodyInMouthClientRpc(killPlayerId);
+        }
+
+        [ClientRpc]
+        public void TakeBodyInMouthClientRpc(int killPlayerId)
+        {
+            TakeBodyInMouth(killPlayerId);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void DropcarriedBodyServerRpc()
+        {
+            DropcarriedBodyClientRpc();
+        }
+        [ClientRpc]
+        public void DropcarriedBodyClientRpc()
+        {
+            DropCarriedBody();
+        }
+
+
+
+        //Methods & Logic
+
+
+        //Player Detection
+        private bool FoundClosestPlayerInRange(float range = 15f, float senseRange = 3f)
+        {
+            TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: true);
+            if (targetPlayer == null)
+            {
+                // Couldn't see a player, so we check if a player is in sensing distance instead
+                TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: false);
+                range = senseRange;
+            }
+            return targetPlayer != null && Vector3.Distance(transform.position, targetPlayer.transform.position) < range;
+        }
+
+
+        private void CheckLineOfSight()
+        {
+            PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(30f, 70, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
+            if (allPlayersInLineOfSight != null)
+            {
+                //LogIfDebugBuild("Looking for moving players in line of sight");
+                for (int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
+                {
+                    //TrexSeePlayerEffect(allPlayersInLineOfSight[i]);
+                    if (CheckIfPlayerIsmoving())
+                    {
+                        LogIfDebugBuild($"JPGOTrex: Saw player [{allPlayersInLineOfSight[i]}] moving");
+                        targetPlayer = allPlayersInLineOfSight[i];
+                        spottedPlayer = true;
+                    }
+                }
+            }
+        }
+
+        //Check wether this will need an Rpc or not
+        private bool CheckIfPlayerIsmoving()
+        {
+            LogIfDebugBuild("JPOGTrex:Checking if player is moving");
+            localPlayerTurnDistance += StartOfRound.Instance.playerLookMagnitudeThisFrame;
+            if (localPlayerTurnDistance > 0.1f && Vector3.Distance(GameNetworkManager.Instance.localPlayerController.transform.position, base.transform.position) < 10f)
+            {
+
+                return true;
+            }
+            if (GameNetworkManager.Instance.localPlayerController.performingEmote)
+            {
+                return true;
+            }
+            if (Time.realtimeSinceStartup - StartOfRound.Instance.timeAtMakingLastPersonalMovement < 0.25f)
+            {
+                return true;
+            }
+            if (GameNetworkManager.Instance.localPlayerController.timeSincePlayerMoving < 0.05f)
+            {
+                return true;
+            }
+            return false;
+        }
+
+
+        //Attack Area and hit Detection
+        private void CheckForPlayersInRangeOfGrabAttack()
+        {
             int playerLayer = 1 << 3;
-            LogIfDebugBuild("Checking if Player can be grabbed");
+            LogIfDebugBuild("JPOGTrex: Checking if Player can be grabbed");
             Collider[] hitColliders = Physics.OverlapBox(attackArea.position, attackArea.localScale, Quaternion.identity, playerLayer);
             if (hitColliders.Length > 0)
             {
@@ -736,18 +820,9 @@ namespace JPOGTrex {
             }
         }
 
-
-        [ClientRpc]
-        public void DoAnimationClientRpc(string animationName)
+        public void GrabAttackHit()
         {
-            LogIfDebugBuild($"Animation: {animationName}");
-            creatureAnimator.SetTrigger(animationName);
-        }
-
-        [ClientRpc]
-        public void GrabAttackHitClientRpc()
-        {
-            LogIfDebugBuild("GrabAttackHitClientRpc");
+            LogIfDebugBuild("JPOGTrex: Checking if grab attack hit player");
             int playerLayer = 1 << 3; // This can be found from the game's Asset Ripper output in Unity
             Collider[] hitColliders = Physics.OverlapBox(attackArea.position, attackArea.localScale, Quaternion.identity, playerLayer);
             if (hitColliders.Length > 0)
@@ -772,76 +847,37 @@ namespace JPOGTrex {
             }
         }
 
-        [ClientRpc]
-        public void CancelKillAnimationWithPlayerClientRpc(int playerObjectId)
+        //Player body Interaction
+        private void TakeBodyInMouth(int playerId)
         {
-            NetworkManager networkManager = base.NetworkManager;
-            if ((object)networkManager != null && networkManager.IsListening)
+            PlayerControllerB killPlayer = StartOfRound.Instance.allPlayerScripts[playerId];           
+            if (killPlayer != null)
             {
-                if (__rpc_exec_stage != __RpcExecStage.Client && (networkManager.IsServer || networkManager.IsHost))
-                {
-                    ClientRpcParams clientRpcParams = default(ClientRpcParams);
-                    FastBufferWriter bufferWriter = __beginSendClientRpc(2798326268u, clientRpcParams, RpcDelivery.Reliable);
-                    BytePacker.WriteValueBitPacked(bufferWriter, playerObjectId);
-                    __endSendClientRpc(ref bufferWriter, 2798326268u, clientRpcParams, RpcDelivery.Reliable);
-                }
-                if (__rpc_exec_stage == __RpcExecStage.Client && (networkManager.IsClient || networkManager.IsHost))
-                {
-                    StartOfRound.Instance.allPlayerScripts[playerObjectId].inAnimationWithEnemy = null;
-                }
+                DeadBodyInfo body = killPlayer.deadBody;
+                body.attachedTo = mouthGrip;
+                body.attachedLimb = body.bodyParts[5];
+                body.matchPositionExactly = true;
+
+                //The T-rex Should be able to multikill so all bodies it grabs are added to the list
+                carryingBodies.Add(body);
             }
         }
 
-
-        [ServerRpc(RequireOwnership = false)]
-        public void KillPlayerServerRpc(int playerId)
+        private void DropCarriedBody()
         {
-            NetworkManager networkManager = base.NetworkManager;
-            if((object)networkManager == null || !networkManager.IsListening) {
-                return;
-            }
-            if(__rpc_exec_stage != __RpcExecStage.Server && (networkManager.IsClient || networkManager.IsHost)) {
-                ServerRpcParams serverRpcParams = default(ServerRpcParams);
-                FastBufferWriter bufferWriter = __beginSendServerRpc(998670557u, serverRpcParams, RpcDelivery.Reliable);
-                BytePacker.WriteValueBitPacked(bufferWriter, playerId);
-                __endSendServerRpc(ref bufferWriter, 998670557u, serverRpcParams, RpcDelivery.Reliable);
-            }
-            if (__rpc_exec_stage == __RpcExecStage.Server && (networkManager.IsServer || networkManager.IsHost))
+            if (carryingBodies.Count > 0)
             {
-                if (!inKillAnimation)
+                //All grabbed bodies should be dropped by the Trex
+                foreach (DeadBodyInfo carryingbody in carryingBodies)
                 {
-                    inKillAnimation = true;
-                    KillPlayerClientRpc(playerId);
+                    carryingBody.speedMultiplier = 12f;
+                    carryingBody.attachedTo = null;
+                    carryingBody.attachedLimb = null;
+                    carryingBody.matchPositionExactly = false;
+                    carryingBody = null;
                 }
-                else
-                {
-                    CancelKillAnimationWithPlayerClientRpc(playerId);
-                }
-            }
-        }
-        [ClientRpc]
-        public void KillPlayerClientRpc(int playerId)
-        {
-            NetworkManager networkManager = base.NetworkManager;
-            if ((object)networkManager == null || !networkManager.IsListening)
-            {
-                return;
-            }
-            if (__rpc_exec_stage != __RpcExecStage.Client && (networkManager.IsServer || networkManager.IsHost))
-            {
-                ClientRpcParams clientRpcParams = default(ClientRpcParams);
-                FastBufferWriter bufferWriter = __beginSendClientRpc(2252497379u, clientRpcParams, RpcDelivery.Reliable);
-                BytePacker.WriteValueBitPacked(bufferWriter, playerId);
-                __endSendClientRpc(ref bufferWriter, 2252497379u, clientRpcParams, RpcDelivery.Reliable);
-            }
-            if (__rpc_exec_stage == __RpcExecStage.Client && (networkManager.IsClient || networkManager.IsHost))
-            {
-                LogIfDebugBuild("Kill player rpc");
-                if (killPlayerCoroutine != null)
-                {
-                    StopCoroutine(killPlayerCoroutine);
-                }
-                killPlayerCoroutine = StartCoroutine(KillPlayer(playerId));
+                //Clear the list of bodies bein
+                carryingBodies.Clear();
             }
         }
 
@@ -871,7 +907,7 @@ namespace JPOGTrex {
                 inKillAnimation = false;
                 yield break;
             }
-            TakeBodyInMouth(killPlayer.deadBody);
+            TakeBodyInMouthClientRpc(playerId);
             startTime = Time.timeSinceLevelLoad;
             Quaternion rotateTo = Quaternion.Euler(new Vector3(0f, RoundManager.Instance.YRotationThatFacesTheFarthestFromPosition(base.transform.position + Vector3.up * 0.6f), 0f));
             Quaternion rotateFrom = base.transform.rotation;
@@ -883,9 +919,49 @@ namespace JPOGTrex {
                     base.transform.rotation = Quaternion.RotateTowards(rotateFrom, rotateTo, 60f * Time.deltaTime);
                 }
             }
-            yield return new WaitForSeconds(3.01f);
             suspicionLevel = 2;
             inKillAnimation = false;
+            killPlayerCoroutine = null;
+            yield break;
+        }
+
+        //Effects on player
+
+        private void TrexStartsChasingPlayerEffect(PlayerControllerB playerControllerB)
+        {
+            if (playerControllerB.isPlayerDead || playerControllerB.isInsideFactory)
+            {
+                return;
+            }
+            if (currentBehaviourStateIndex == (int)State.SearchingForPlayer && playerControllerB == GameNetworkManager.Instance.localPlayerController)
+            {
+                targetPlayer.JumpToFearLevel(10.0f);
+                return;
+            }
+        }
+        private void TrexSeePlayerEffect(PlayerControllerB playerControllerB)
+        {
+            if (playerControllerB.isPlayerDead || playerControllerB.isInsideFactory || playerControllerB != null)
+            {
+                return;
+            }
+            if (playerControllerB == GameNetworkManager.Instance.localPlayerController && playerControllerB != null)
+            {
+                playerControllerB.IncreaseFearLevelOverTime(2.0f);
+                return;
+            }
+            bool flag = false;
+            if (!playerControllerB.isInHangarShipRoom && CheckLineOfSightForPosition(playerControllerB.gameplayCamera.transform.position, 45f, 70) && playerControllerB != null)
+            {
+                if (Vector3.Distance(base.transform.position, playerControllerB.transform.position) < 15f)
+                {
+                    playerControllerB.JumpToFearLevel(0.7f);
+                }
+                else
+                {
+                    playerControllerB.JumpToFearLevel(0.4f);
+                }
+            }
         }
     }
 }
