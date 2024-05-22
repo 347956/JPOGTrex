@@ -1527,6 +1527,12 @@ MonoBehaviour:
   attackArea: {fileID: 7852763459864048508}
   mouthGrip: {fileID: 2147176701623385217}
   mouthAttackHitBox: {fileID: 2789171439590536909}
+  scrutiny: 1
+  playerStealthMeters:
+  - 0
+  - 0
+  - 0
+  - 0
   suspicionLevel: 0
 --- !u!114 &3735662421254837734
 MonoBehaviour:

@@ -23,7 +23,7 @@ namespace JPOGTrex {
         public Transform turnCompass = null!;
         public Transform attackArea = null!;
         public Transform mouthGrip = null!;
-        public SphereCollider mouthAttackHitBox = null!;
+        public Transform mouthAttackHitBox = null!;
         private Transform? mouthBone;
         private DeadBodyInfo carryingBody = null!;
         private List<DeadBodyInfo>carryingBodies = new List<DeadBodyInfo>();
@@ -519,15 +519,15 @@ namespace JPOGTrex {
         [ServerRpc(RequireOwnership = false)]
         private void CheckForPlayersInRangeOfGrabAttackServerRpc()
         {
-            CheckForPlayersInRangeOfGrabAttackClientRPC();
+            CheckForPlayersInRangeOfGrabAttack();
         }
 
 
-        [ClientRpc]
+/*        [ClientRpc]
         private void CheckForPlayersInRangeOfGrabAttackClientRPC()
         {
             CheckForPlayersInRangeOfGrabAttack();
-        }
+        }*/
 
         [ClientRpc]
         public void DoAnimationClientRpc(string animationName)
@@ -539,14 +539,13 @@ namespace JPOGTrex {
         [ServerRpc(RequireOwnership = false)]
         public void GrabAttackHitServerRpc()
         {
-            GrabAttackHitClientRpc();
-        }
-
-        [ClientRpc]
-        public void GrabAttackHitClientRpc()
-        {
             GrabAttackHit();
         }
+
+/*        [ClientRpc]
+        public void GrabAttackHitClientRpc()
+        {
+        }*/
 
         [ClientRpc]
         public void CancelKillAnimationWithPlayerClientRpc(int playerObjectId)
@@ -712,8 +711,9 @@ namespace JPOGTrex {
         //Attack Area and hit Detection
         private void CheckForPlayersInRangeOfGrabAttack()
         {
-            int playerLayer = 1 << 3;
             LogIfDebugBuild("JPOGTrex: Checking if Player can be grabbed");
+            int playerLayer = 1 << 3; 
+            LogIfDebugBuild($"JPOGTrex: Player Layer Mask Value: {playerLayer}");
             Collider[] hitColliders = Physics.OverlapBox(attackArea.position, attackArea.localScale, Quaternion.identity, playerLayer);
             if (hitColliders.Length > 0)
             {
@@ -735,7 +735,7 @@ namespace JPOGTrex {
 
         public void GrabAttackHit()
         {
-            LogIfDebugBuild("JPOGTrex: Checking if grab attack hit player");
+            LogIfDebugBuild("JPOGTrex: Checking if grab attack has hit player");
             int playerLayer = 1 << 3; // This can be found from the game's Asset Ripper output in Unity
             Collider[] hitColliders = Physics.OverlapBox(attackArea.position, attackArea.localScale, Quaternion.identity, playerLayer);
             if (hitColliders.Length > 0)
@@ -745,11 +745,14 @@ namespace JPOGTrex {
                     PlayerControllerB playerControllerB = MeetsStandardPlayerCollisionConditions(player);
                     if (playerControllerB != null)
                     {
-                        LogIfDebugBuild($"JPOGTrex: grab attack hit player: [{playerControllerB.playerClientId}]!");
-                        timeSinceHittingLocalPlayer = 0f;
-                        LogIfDebugBuild($"JPOGTrex: Killing player: [{playerControllerB.playerClientId}]!");
-                        StartCoroutine(KillPlayer((int)playerControllerB.playerClientId));
-                        hitConnect = true;
+                        if(playerControllerB == RoundManager.Instance.playersManager.localPlayerController)
+                        {
+                            LogIfDebugBuild($"JPOGTrex: grab attack hit player: [{playerControllerB.playerClientId}]!");
+                            timeSinceHittingLocalPlayer = 0f;
+                            LogIfDebugBuild($"JPOGTrex: Killing player: [{playerControllerB.playerClientId}]!");
+                            StartCoroutine(KillPlayer((int)playerControllerB.playerClientId));
+                            hitConnect = true;
+                        }
                     }
                 }
             }
