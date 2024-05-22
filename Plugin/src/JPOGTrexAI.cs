@@ -55,22 +55,23 @@ namespace JPOGTrex {
         private bool hitConnect;
         private bool lostPlayerInChase;
         private PlayerControllerB chasingPlayer;
+        private PlayerControllerB movingPlayer;
         private float localPlayerTurnDistance;
         private bool spottedPlayer;
 
         enum State
         {
             SearchingForPlayer,
+            SpottedPlayer,
             ChasingPlayer,
+            Roaring,
             AttackingEntity,
             GrabPlayer,
             GrabbedPlayer,
             GrabbingPlayer,
             EatingPlayer,
-            SpottedPlayer,
-            Roaring,
-            Idle,
-            Eating
+            Eating,
+            Idle
         }
 
         [Conditional("DEBUG")]
@@ -83,7 +84,7 @@ namespace JPOGTrex {
             SetBones();
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
-            SetWalkingAnimation(defaultSpeed);
+            SetWalkingAnimationServerRpc(defaultSpeed);
             timeSinceNewRandPos = 0;
             positionRandomness = new Vector3(0, 0, 0);
             enemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
@@ -95,27 +96,9 @@ namespace JPOGTrex {
             StartSearch(transform.position);
         }
 
-        private void SetBones()
-        {
-            GameObject model = GameObject.Find("D");
-            if (model != null)
-            {
-                LogIfDebugBuild($"trying to find target bone for the mouthBone from: [{model}]");
-                mouthBone = FindChildRecursive(model.transform, "Mouth");
-            }
-            if (mouthBone != null)
-            {
-                LogIfDebugBuild($"found targetbone {mouthBone.name}");
-            }
-            else
-            {
-                LogIfDebugBuild("no targetbone found!");
-            }
-        }
-
         public override void Update() {
             base.Update();
-            UpdateMouthGripLocationToTargetBoneLocation();
+            UpdateMouthGripLocationToTargetBoneLocationClientRpc();
             if (isEnemyDead) {
                 // For some weird reason I can't get an RPC to get called from HitEnemy() (works from other methods), so we do this workaround. We just want the enemy to stop playing the song.
                 if (!isDeadAnimationDone) {
@@ -137,7 +120,7 @@ namespace JPOGTrex {
             if (stunNormalizedTimer > 0f)
             {
                 agent.speed = 0f;
-                SetWalkingAnimation(agent.speed);
+                SetWalkingAnimationServerRpc(agent.speed);
             }
         }
 
@@ -152,13 +135,13 @@ namespace JPOGTrex {
             {
 
                 case (int)State.SearchingForPlayer:
-                    agent.speed = defaultSpeed;
                     if (previousState != State.SearchingForPlayer)
                     {
-                        SetWalkingAnimation(agent.speed);
+                        agent.speed = defaultSpeed;
+                        SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.SearchingForPlayer;
                     }
-                    FoundClosestPlayerInRangeServerRpc();
+                    //FoundClosestPlayerInRangeServerRpc();
                     CheckLineOfSightServerRpc();
                     if (targetPlayer != null)
                     {
@@ -170,12 +153,12 @@ namespace JPOGTrex {
                     break;
 
                 case (int)State.SpottedPlayer:
-                    agent.speed = 0f;
                     if (previousState != State.SpottedPlayer && !isSniffingStarted)
                     {
+                        agent.speed = 0f;
                         sniffing = true;
                         LogIfDebugBuild("JPOGTrex: Spotted Player!");
-                        SetWalkingAnimation(agent.speed);
+                        SetWalkingAnimationServerRpc(agent.speed);
                         StartCoroutine(FoundPlayer());
                         TrexStartsChasingPlayerEffect(targetPlayer);
                         isSniffingStarted = true;
@@ -193,9 +176,9 @@ namespace JPOGTrex {
                     //Because the T-rex's walking animation gets set in the spotted player phase we do not want to set it again to avoid bugging animations
                     if(previousState != State.SpottedPlayer && previousState != State.Roaring)
                     {
-                        SetWalkingAnimation(agent.speed);
+                        agent.speed = 0f;
+                        SetWalkingAnimationServerRpc(agent.speed);
                     } 
-                    agent.speed = 0f;
                     int chaseAnimationNmbr = enemyRandom.Next(1,4);
                     if (previousState != State.Roaring && !isRoaringStarted)
                     {
@@ -214,32 +197,25 @@ namespace JPOGTrex {
 
 
                 case (int)State.ChasingPlayer:
-                    agent.speed = defaultSpeed * 2f;
                     if (previousState != State.ChasingPlayer)
                     {
-                        SetWalkingAnimation(agent.speed);
+                        agent.speed = defaultSpeed * 2f;
+                        previousState = State.ChasingPlayer;
+                        SetWalkingAnimationServerRpc(agent.speed);
                     }
-                    // Keep targeting closest player, unless they are over 20 units away and we can't see them.
-                    if (!TargetClosestPlayerInAnyCase() || (Vector3.Distance(transform.position, targetPlayer.transform.position) > 40 && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
+                    // Keep targeting closest player, unless they are over 40 units away and we can't see them.
+                    if (!TargetClosestPlayerInAnyCase() || movingPlayer != null &&
+                        (Vector3.Distance(transform.position, movingPlayer.transform.position) > 40 && !CheckLineOfSightForPosition(movingPlayer.transform.position)))
                     {
                         LogIfDebugBuild("Stop Target Player");
+                        movingPlayer = null;
                         StartSearch(transform.position);
-                        SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
-                        previousState = State.ChasingPlayer;
                         targetPlayer = null;
+                        SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                         return;
                     }
                     SetDestinationToPosition(targetPlayer.transform.position);
                     CheckForPlayersInRangeOfGrabAttackServerRpc();
-                    if(hittAblePlayers > 0)
-                    {
-                        SwitchToBehaviourClientRpc((int)State.GrabPlayer);
-                        previousState = State.ChasingPlayer;
-                        hittAblePlayers = 0;
-                        return;
-                    }
-
-                    previousState = State.ChasingPlayer;
                     break;
 
                 case (int)State.AttackingEntity:
@@ -249,13 +225,12 @@ namespace JPOGTrex {
                     break;
 
                 case (int)State.GrabPlayer:
-                    agent.speed = defaultSpeed / 2;
                     if (previousState != State.GrabPlayer)
                     {
-                        SetWalkingAnimation(agent.speed);
+                        agent.speed = defaultSpeed / 2;
+                        SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.GrabPlayer;
                     }
-                    previousState = State.GrabPlayer;
                     if (!beginningGrab && timeSinceHittingLocalPlayer >= 4f)
                     {
                         beginningGrab = true;
@@ -263,16 +238,14 @@ namespace JPOGTrex {
                     }
                     if (!hitConnect)
                     {
+                     
                         StopCoroutine(BeginGrab());
                         SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
                         break;
                     }
-                    if(!beginningGrab && hitConnect)
+                    if (hitConnect)
                     {
-                        StopCoroutine(BeginGrab());
                         SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
-                        hitConnect = false;
-                        break;
                     }
                     break;
 
@@ -285,29 +258,27 @@ namespace JPOGTrex {
                 case (int)State.GrabbingPlayer:
                     if(previousState != State.GrabbingPlayer)
                     {
+                        agent.speed = 0;
                         LogIfDebugBuild("JPOGTrex: GrabbingPlayer State");
-                        SetWalkingAnimation(agent.speed);
+                        SetWalkingAnimationServerRpc(agent.speed);
                         StartCoroutine(ShakeGrabbedBody());
+                        previousState = State.GrabbingPlayer;
                     }
                     break;
                    
 
                 case (int)State.EatingPlayer:
-                    agent.speed = 0f;
                     if (previousState != State.EatingPlayer)
                     {
-                        SetWalkingAnimation(agent.speed);
+                        agent.speed = 0f;
+                        SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.EatingPlayer;
                     }
-                    if(previousState != State.EatingPlayer && isHungry)
+                    if(!inEatingAnimation && isHungry)
                     {
                         inEatingAnimation = true;
-                        StartCoroutine(EatPlayer(carryingBody));
+                        StartCoroutine(EatPlayer());
                         isHungry = false;
-                    }
-                    if (!inEatingAnimation)
-                    {
-                        SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                     }
                     break;
 
@@ -365,19 +336,6 @@ namespace JPOGTrex {
             CheckLineOfSight();
         }
 
-
-        [ServerRpc(RequireOwnership = false)]
-        private void CheckIfPlayerIsMovingServerRpc(int playerId)
-        {
-
-            CheckIfPlayerIsMovingClientRpc(playerId);
-        }
-        [ClientRpc]
-        private void CheckIfPlayerIsMovingClientRpc(int playerId)
-        {
-            CheckIfPlayerIsmoving();
-        }
-
         [ServerRpc(RequireOwnership = false)]
         private void FoundClosestPlayerInRangeServerRpc()
         {
@@ -406,44 +364,15 @@ namespace JPOGTrex {
         }
 
 
-        //Simple method that sets the walking animation of the T-rex based on it's speed.
-        //This way a more slowed down walking animation or sped up running animation can be applied.
-        //Should be called after the speed of the current behaviour state has been set.
-        private void SetWalkingAnimation(float currentSpeed)
+  
+
+
+
+        [ServerRpc(RequireOwnership = false)]
+        private void SetWalkingAnimationServerRpc(float speed)
         {
-            if (currentSpeed == 0f)
-            {
-                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"stopWalk\".");
-                DoAnimationClientRpc("stopWalk");
-                return;
-            }
-            else if (currentSpeed <= 4f && currentSpeed > 1f)
-            {
-                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"startWalk\".");
-                DoAnimationClientRpc("startWalk");
-                return;
-            }
-            else if (currentSpeed > 4f && currentSpeed <= 6f)
-            {
-                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"chasingRun\".");
-                DoAnimationClientRpc("chasingRun");
-                return;
-            }
-            else if (currentSpeed > 0f && currentSpeed <= 1f)
-            {
-                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"slowDown\".");
-                DoAnimationClientRpc("slowDown");
-                return;
-            }
-            else if (currentSpeed > 6f)
-            {
-                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"speedUp\".");
-                DoAnimationClientRpc("speedUp");
-                return;
-            }
+            SetWalkingAnimation(speed);
         }
-
-
 
         //This method will go trhough all "grab" logic as the grab attack consits of 2 stages
         public void startGrabAttack(Collider other)
@@ -489,12 +418,11 @@ namespace JPOGTrex {
 
         private IEnumerator BeginGrab()
         {
-            LogIfDebugBuild("JPOGTrex: BeginningGrab");
+            LogIfDebugBuild("JPOGTrex: Beginning grab Attack!");
             DoAnimationClientRpc("grabPlayer");
-            DoAnimationClientRpc("grabbedPlayer");
             GrabAttackHitServerRpc();
+            DoAnimationClientRpc("grabbedPlayer");
             yield return new WaitForSeconds(1.2f);
-            beginningGrab = false;
             yield break;
         }
 
@@ -545,26 +473,29 @@ namespace JPOGTrex {
             yield return new WaitForSeconds(2.6f);
             if(isHungry && carryingBody != null)
             {
-                SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
-                yield break;
+                SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
             }
             else
             {
                 DropcarriedBodyServerRpc();
             }
+            yield break;
         }
 
-        private IEnumerator EatPlayer(DeadBodyInfo bodyToEat)
+        private IEnumerator EatPlayer()
         {
-            if(bodyToEat == null)
+            if(carryingBodies == null || carryingBodies.Count <= 0)
             {
                 yield break;
             }
-            LogIfDebugBuild($"JPOGTrex: begin eating body [{bodyToEat.playerObjectId}]");
+            LogIfDebugBuild($"JPOGTrex: beginning to eat player(s)");
             DoAnimationClientRpc("eatingPlayer");
-            bodyToEat.MakeCorpseBloody();
+            foreach(DeadBodyInfo deadBody in carryingBodies)
+            {
+                deadBody.MakeCorpseBloody();
+            }
             yield return new WaitForSeconds(5.7f);
-            bodyToEat.DeactivateBody(false);
+            //bodyToEat.DeactivateBody(false);
             inEatingAnimation = false;
             yield break;
         }
@@ -576,50 +507,14 @@ namespace JPOGTrex {
             base.KillEnemy(destroy);
         }
 
-        //Search Through the model to find the bone that will be used to update Mouthgrip's transform
-        private Transform FindChildRecursive(Transform parent, string childName)
-        {
-            Transform toreturn = new Transform();
-            LogIfDebugBuild($"Child name to search for: [{childName}]");
-            foreach (Transform child in parent)
-            {
-                LogIfDebugBuild($"{child.name}"); 
-                if (child.name == childName)
-                {
-                    LogIfDebugBuild($"found matching bone:[{child.name}] + [{childName}]");
-                    return child;
-                }
-                Transform found = FindChildRecursive(child, childName);
-                if (found != null)
-                {
-                    toreturn = found;
-                    return found;
-                }
-            }
-            if(toreturn != null)
-            {
-                return toreturn;
-            }
-            else
-            {
-                return null;
-            }
-        }
-        //This is should update the mouthgrip transform of the Trex to transform of the bone.
-        //Effectively Making it look like the player's body is attached/grabbed by the T-rex's mouth during the animation instead of blinking/warping to the static location of the mouthgrip as seen in Unity
-        //Making this more generic could make it usefull to add a collider/hitbox for the mouth during the animation, this way we can check if the player is hit during the animation and killing them.
-        //This should make the kill feel smoother instead of a delayed death because you were in a collision box at some point.
-        private void UpdateMouthGripLocationToTargetBoneLocation()
-        {
-            //LogIfDebugBuild("Updating MouthGripPosition");
-            mouthGrip.transform.position = mouthBone.transform.position;
-            mouthGrip.transform.rotation = mouthBone.transform.rotation;
-            //LogIfDebugBuild($"Mouth grip: position = [{mouthGrip.transform.position}] | rotation = [{mouthGrsip.transform.rotation}]");
-        }
-
         //Networking stuff and killPlayer
-
-
+        [ClientRpc]
+        private void UpdateMouthGripLocationToTargetBoneLocationClientRpc()
+        {
+            //This method updates the position and rotation of the mouth grip to match that of the mouth bone. Since it involves updating the transform of a GameObject
+            //this operation should be consistent across all clients.
+            UpdateMouthGripLocationToTargetBoneLocation();
+        }
 
         [ServerRpc(RequireOwnership = false)]
         private void CheckForPlayersInRangeOfGrabAttackServerRpc()
@@ -640,8 +535,6 @@ namespace JPOGTrex {
             LogIfDebugBuild($"Animation: {animationName}");
             creatureAnimator.SetTrigger(animationName);
         }
-
-
 
         [ServerRpc(RequireOwnership = false)]
         public void GrabAttackHitServerRpc()
@@ -670,6 +563,7 @@ namespace JPOGTrex {
         public void BeginGrabAttackClientRpc()
         {
             StartCoroutine(BeginGrab());
+
         }
         [ServerRpc(RequireOwnership = false)]
         public void StopGrabAttackServerRpc()
@@ -738,7 +632,7 @@ namespace JPOGTrex {
 
 
         //Player Detection
-        private bool FoundClosestPlayerInRange(float range = 15f, float senseRange = 3f)
+        private bool FoundClosestPlayerInRange(float range = 10f, float senseRange = 2f)
         {
             TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: true);
             if (targetPlayer == null)
@@ -747,53 +641,72 @@ namespace JPOGTrex {
                 TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: false);
                 range = senseRange;
             }
-            return targetPlayer != null && Vector3.Distance(transform.position, targetPlayer.transform.position) < range;
+            if (targetPlayer != null && Vector3.Distance(transform.position, targetPlayer.transform.position) < range)
+            {
+                LogIfDebugBuild("JPOGTrex: Spotted player in close proximity");
+                return true;
+            }
+            return false;
         }
 
 
         private void CheckLineOfSight()
         {
+
             PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(30f, 70, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
             if (allPlayersInLineOfSight != null)
             {
+                LogIfDebugBuild($"JPOGTrex: allPlayersInLineOfSight length: {allPlayersInLineOfSight.Length}"); 
+                LogIfDebugBuild($"JPOGTrex: allPlayerScripts length: {StartOfRound.Instance.allPlayerScripts.Length}");
                 //LogIfDebugBuild("Looking for moving players in line of sight");
-                for (int i = 0; i < StartOfRound.Instance.allPlayerScripts.Length; i++)
+                foreach (var playerControllerB in allPlayersInLineOfSight)
                 {
-                    //TrexSeePlayerEffect(allPlayersInLineOfSight[i]);
-                    if (CheckIfPlayerIsmoving())
+                    if (playerControllerB != null && !playerControllerB.isPlayerDead && !isInsidePlayerShip)
                     {
-                        LogIfDebugBuild($"JPGOTrex: Saw player [{allPlayersInLineOfSight[i]}] moving");
-                        targetPlayer = allPlayersInLineOfSight[i];
-                        spottedPlayer = true;
+                        LogIfDebugBuild($"JPOGTrex: Checking player with ID {playerControllerB.playerClientId}");
+                        if (CheckIfPlayerIsmoving(playerControllerB))
+                        {
+                            LogIfDebugBuild($"JPGOTrex: Saw player [{playerControllerB.playerClientId}] moving");
+                            targetPlayer = playerControllerB;
+                            movingPlayer = playerControllerB;
+                            spottedPlayer = true;
+                            break;
+                        }
                     }
                 }
             }
         }
 
         //Check wether this will need an Rpc or not
-        private bool CheckIfPlayerIsmoving()
+        private bool CheckIfPlayerIsmoving(PlayerControllerB playerToCheck)
         {
-            LogIfDebugBuild("JPOGTrex:Checking if player is moving");
+            //Always reset the moving player, so if none of the checks pass, the previous player that was moving is not passed again
+            movingPlayer = null;
+            LogIfDebugBuild($"JPOGTrex: Checking if player {playerToCheck.playerClientId} is moving");
             localPlayerTurnDistance += StartOfRound.Instance.playerLookMagnitudeThisFrame;
-            if (localPlayerTurnDistance > 0.1f && Vector3.Distance(GameNetworkManager.Instance.localPlayerController.transform.position, base.transform.position) < 10f)
+            if (localPlayerTurnDistance > 0.1f && Vector3.Distance(playerToCheck.transform.position, base.transform.position) < 10f)
             {
-
+                LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (turn distance)");
                 return true;
             }
-            if (GameNetworkManager.Instance.localPlayerController.performingEmote)
+            if (playerToCheck.performingEmote)
             {
+                LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (performing emote)");
                 return true;
             }
             if (Time.realtimeSinceStartup - StartOfRound.Instance.timeAtMakingLastPersonalMovement < 0.25f)
             {
+                LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (recent personal movement)");
                 return true;
             }
-            if (GameNetworkManager.Instance.localPlayerController.timeSincePlayerMoving < 0.05f)
+            if (playerToCheck.timeSincePlayerMoving < 0.05f)
             {
+                LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (recent movement)");
                 return true;
             }
+            LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is not moving");
             return false;
-        }
+        }    
 
 
         //Attack Area and hit Detection
@@ -810,7 +723,7 @@ namespace JPOGTrex {
                     if (playerControllerB != null)
                     {
                         LogIfDebugBuild($"JPOGTrex: Grab attack can hit player [{playerControllerB.playerClientId}]!");
-                        hittAblePlayers++;
+                        SwitchToBehaviourClientRpc((int)State.GrabPlayer);
                     }
                 }
             }
@@ -836,14 +749,13 @@ namespace JPOGTrex {
                         timeSinceHittingLocalPlayer = 0f;
                         LogIfDebugBuild($"JPOGTrex: Killing player: [{playerControllerB.playerClientId}]!");
                         StartCoroutine(KillPlayer((int)playerControllerB.playerClientId));
+                        hitConnect = true;
                     }
                 }
-                hitConnect = true;
             }
             else
             {
                 LogIfDebugBuild("Grab attack hit 0 players");
-                hitConnect = false;
             }
         }
 
@@ -963,5 +875,107 @@ namespace JPOGTrex {
                 }
             }
         }
+
+        //Some Utility stuff
+
+
+        //Simple method that sets the walking animation of the T-rex based on it's speed.
+        //This way a more slowed down walking animation or sped up running animation can be applied.
+        //Should be called after the speed of the current behaviour state has been set.
+        //This should make it more configurable
+        private void SetWalkingAnimation(float currentSpeed)
+        {
+            if (currentSpeed == 0f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"stopWalk\".");
+                DoAnimationClientRpc("stopWalk");
+                return;
+            }
+            else if (currentSpeed <= 4f && currentSpeed > 1f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"startWalk\".");
+                DoAnimationClientRpc("startWalk");
+                return;
+            }
+            else if (currentSpeed > 4f && currentSpeed <= 6f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"chasingRun\".");
+                DoAnimationClientRpc("chasingRun");
+                return;
+            }
+            else if (currentSpeed > 0f && currentSpeed <= 1f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"slowDown\".");
+                DoAnimationClientRpc("slowDown");
+                return;
+            }
+            else if (currentSpeed > 6f)
+            {
+                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"speedUp\".");
+                DoAnimationClientRpc("speedUp");
+                return;
+            }
+        }
+
+        //Loads the model and calls the methods to set the mouthgrip with the bone.
+        private void SetBones()
+        {
+            GameObject model = GameObject.Find("D");
+            if (model != null)
+            {
+                LogIfDebugBuild($"trying to find target bone for the mouthBone from: [{model}]");
+                mouthBone = FindChildRecursive(model.transform, "Mouth");
+            }
+            if (mouthBone != null)
+            {
+                LogIfDebugBuild($"found targetbone {mouthBone.name}");
+            }
+            else
+            {
+                LogIfDebugBuild("no targetbone found!");
+            }
+        }
+        //Search Through the model to find the bone that will be used to update Mouthgrip's transform
+        private Transform FindChildRecursive(Transform parent, string childName)
+        {
+            Transform boneToAttachTo = new Transform();
+            LogIfDebugBuild($"Child name to search for: [{childName}]");
+            foreach (Transform child in parent)
+            {
+                LogIfDebugBuild($"{child.name}");
+                if (child.name == childName)
+                {
+                    LogIfDebugBuild($"found matching bone:[{child.name}] + [{childName}]");
+                    return child;
+                }
+                Transform found = FindChildRecursive(child, childName);
+                if (found != null)
+                {
+                    boneToAttachTo = found;
+                    return found;
+                }
+            }
+            if (boneToAttachTo != null)
+            {
+                return boneToAttachTo;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        //This is should update the mouthgrip transform of the Trex to transform of the bone.
+        //Effectively Making it look like the player's body is attached/grabbed by the T-rex's mouth during the animation instead of blinking/warping to the static location of the mouthgrip as seen in Unity
+        //Making this more generic could make it usefull to add a collider/hitbox for the mouth during the animation, this way we can check if the player is hit during the animation and killing them.
+        //This should make the kill feel smoother instead of a delayed death because you were in a collision box at some point.
+        private void UpdateMouthGripLocationToTargetBoneLocation()
+        {
+            if(mouthBone != null)
+            {
+                mouthGrip.transform.position = mouthBone.transform.position;
+                mouthGrip.transform.rotation = mouthBone.transform.rotation;
+            }
+        }
+
     }
 }
