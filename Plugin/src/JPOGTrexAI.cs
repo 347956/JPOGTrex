@@ -7,6 +7,7 @@ using GameNetcodeStuff;
 using LethalLib.Modules;
 using Unity.Netcode;
 using UnityEngine;
+using static MonoMod.Cil.RuntimeILReferenceBag.FastDelegateInvokers;
 
 namespace JPOGTrex {
 
@@ -27,6 +28,7 @@ namespace JPOGTrex {
         private Transform? mouthBone;
         private DeadBodyInfo carryingBody = null!;
         private List<DeadBodyInfo>carryingBodies = new List<DeadBodyInfo>();
+        private GameObject modelD;
         private int hittAblePlayers = 0;
         public float scrutiny = 1f;
         public float[] playerStealthMeters = new float[4];
@@ -57,6 +59,7 @@ namespace JPOGTrex {
         private PlayerControllerB chasingPlayer;
         private PlayerControllerB movingPlayer;
         private float localPlayerTurnDistance;
+        private float attackRange;
         private bool spottedPlayer;
 
         enum State
@@ -81,7 +84,8 @@ namespace JPOGTrex {
 
         public override void Start() {
             base.Start();
-            SetBones();
+            attackRange = 5f;
+            SetBonesServerRpc();
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
             SetWalkingAnimationServerRpc(defaultSpeed);
@@ -204,18 +208,20 @@ namespace JPOGTrex {
                         SetWalkingAnimationServerRpc(agent.speed);
                     }
                     // Keep targeting closest player, unless they are over 40 units away and we can't see them.
-                    if (!TargetClosestPlayerInAnyCase() || movingPlayer != null &&
-                        (Vector3.Distance(transform.position, movingPlayer.transform.position) > 40 && !CheckLineOfSightForPosition(movingPlayer.transform.position)))
+                    if (!TargetClosestPlayerInAnyCase() || targetPlayer != null &&
+                        (Vector3.Distance(transform.position, targetPlayer.transform.position) > 40 && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
                     {
                         LogIfDebugBuild("Stop Target Player");
-                        movingPlayer = null;
-                        StartSearch(transform.position);
                         targetPlayer = null;
+                        StartSearch(transform.position);
                         SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                         return;
                     }
-                    SetDestinationToPosition(targetPlayer.transform.position);
-                    CheckForPlayersInRangeOfGrabAttackServerRpc();
+                    if(targetPlayer != null)
+                    {
+                        SetDestinationToPosition(targetPlayer.transform.position);
+                        CheckForPlayersInRangeOfGrabAttackServerRpc();
+                    }
                     break;
 
                 case (int)State.AttackingEntity:
@@ -256,13 +262,13 @@ namespace JPOGTrex {
                     break;
 
                 case (int)State.GrabbingPlayer:
-                    if(previousState != State.GrabbingPlayer)
-                    {
+                    if (previousState != State.GrabbingPlayer)
+                    {                        
                         agent.speed = 0;
-                        LogIfDebugBuild("JPOGTrex: GrabbingPlayer State");
-                        SetWalkingAnimationServerRpc(agent.speed);
-                        StartCoroutine(ShakeGrabbedBody());
                         previousState = State.GrabbingPlayer;
+                        SetWalkingAnimationServerRpc(agent.speed);
+                        KillPlayerServerRpc((int)targetPlayer.playerClientId);
+                        StartCoroutine(ShakeGrabbedBody());
                     }
                     break;
                    
@@ -322,9 +328,6 @@ namespace JPOGTrex {
             }
         }
 
-        //Copied from the gian but edited
-        //The Trex should spot players but less far and well as the giant
-        //Going for the don't move = can't see trope
         [ServerRpc(RequireOwnership = false)]
         private void CheckLineOfSightServerRpc(){
 
@@ -362,11 +365,6 @@ namespace JPOGTrex {
             if (targetPlayer == null) return false;
             return true;
         }
-
-
-  
-
-
 
         [ServerRpc(RequireOwnership = false)]
         private void SetWalkingAnimationServerRpc(float speed)
@@ -423,6 +421,7 @@ namespace JPOGTrex {
             GrabAttackHitServerRpc();
             DoAnimationClientRpc("grabbedPlayer");
             yield return new WaitForSeconds(1.2f);
+            beginningGrab = false;
             yield break;
         }
 
@@ -471,13 +470,14 @@ namespace JPOGTrex {
         {
             DoAnimationClientRpc("grabbingPlayer");
             yield return new WaitForSeconds(2.6f);
-            if(isHungry && carryingBody != null)
+            if(isHungry)
             {
                 SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
             }
             else
             {
                 DropcarriedBodyServerRpc();
+                SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
             }
             yield break;
         }
@@ -499,6 +499,7 @@ namespace JPOGTrex {
             inEatingAnimation = false;
             yield break;
         }
+
         public override void KillEnemy(bool destroy = false)
         {
             DoAnimationClientRpc("killEnemy");
@@ -508,6 +509,19 @@ namespace JPOGTrex {
         }
 
         //Networking stuff and killPlayer
+        [ServerRpc(RequireOwnership = false)]
+        private void SetBonesServerRpc()
+        {
+            SetBonesClientRpc();
+        }
+        [ClientRpc]
+        private void SetBonesClientRpc()
+        {
+            SetBones();
+        }
+
+
+
         [ClientRpc]
         private void UpdateMouthGripLocationToTargetBoneLocationClientRpc()
         {
@@ -550,6 +564,7 @@ namespace JPOGTrex {
         [ClientRpc]
         public void CancelKillAnimationWithPlayerClientRpc(int playerObjectId)
         {
+            LogIfDebugBuild($"JPOGTrex: CancelKillAnimationWIthPlayer");
             StartOfRound.Instance.allPlayerScripts[playerObjectId].inAnimationWithEnemy = null;
         }
 
@@ -580,6 +595,7 @@ namespace JPOGTrex {
         [ServerRpc(RequireOwnership = false)]
         public void KillPlayerServerRpc(int playerId)
         {
+            LogIfDebugBuild($"JPOGTrex: Checking if in killAnimation");
             if (!inKillAnimation)
             {
                 inKillAnimation = true;
@@ -594,11 +610,13 @@ namespace JPOGTrex {
         [ClientRpc]
         public void KillPlayerClientRpc(int playerId)
         {
-            LogIfDebugBuild("Kill player rpc");
+            LogIfDebugBuild($"JPOGTrex: Checking KillPlayerCoroutine");
             if (killPlayerCoroutine != null)
             {
+                LogIfDebugBuild($"JPOGTrex: In killPlayerCoroutine!, stopping previous killPlayerCoroutine!");
                 StopCoroutine(killPlayerCoroutine);
             }
+            LogIfDebugBuild($"JPOGTrex: start Killing player [{playerId}] rpc");
             killPlayerCoroutine = StartCoroutine(KillPlayer(playerId));
         }
 
@@ -667,7 +685,6 @@ namespace JPOGTrex {
                         {
                             LogIfDebugBuild($"JPGOTrex: Saw player [{playerControllerB.playerClientId}] moving");
                             targetPlayer = playerControllerB;
-                            movingPlayer = playerControllerB;
                             spottedPlayer = true;
                             break;
                         }
@@ -711,7 +728,8 @@ namespace JPOGTrex {
         //Attack Area and hit Detection
         private void CheckForPlayersInRangeOfGrabAttack()
         {
-            LogIfDebugBuild("JPOGTrex: Checking if Player can be grabbed");
+            //OLD
+/*            LogIfDebugBuild("JPOGTrex: Checking if Player can be grabbed");
             int playerLayer = 1 << 3; 
             LogIfDebugBuild($"JPOGTrex: Player Layer Mask Value: {playerLayer}");
             Collider[] hitColliders = Physics.OverlapBox(attackArea.position, attackArea.localScale, Quaternion.identity, playerLayer);
@@ -730,66 +748,118 @@ namespace JPOGTrex {
             else
             {
                 LogIfDebugBuild("JPOGTrex: No players to hit!");
+            }*/
+            //NEW
+            LogIfDebugBuild("JPOGTrex: Checking if Player can be grabbed");
+            if(movingPlayer != null || targetPlayer != null)
+            {
+                float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.transform.position);
+                if(distanceToPlayer <= attackRange)
+                {
+                    LogIfDebugBuild($"JPOGTrex: Grab attack can hit player [{targetPlayer.playerClientId}]!");
+                    SwitchToBehaviourClientRpc((int)State.GrabPlayer);
+                }
+                else
+                {
+                    LogIfDebugBuild("JPOGTrex: No players to hit!");
+                }
+            }
+            else
+            {
+                LogIfDebugBuild("JPOGTrex: No target player assigned!");
             }
         }
 
         public void GrabAttackHit()
         {
-            LogIfDebugBuild("JPOGTrex: Checking if grab attack has hit player");
-            int playerLayer = 1 << 3; // This can be found from the game's Asset Ripper output in Unity
-            Collider[] hitColliders = Physics.OverlapBox(attackArea.position, attackArea.localScale, Quaternion.identity, playerLayer);
-            if (hitColliders.Length > 0)
-            {
-                foreach (var player in hitColliders)
-                {
-                    PlayerControllerB playerControllerB = MeetsStandardPlayerCollisionConditions(player);
-                    if (playerControllerB != null)
-                    {
-                        if(playerControllerB == RoundManager.Instance.playersManager.localPlayerController)
+            //OLD
+            /*            LogIfDebugBuild("JPOGTrex: Checking if grab attack has hit player");
+                        int playerLayer = 1 << 3; // This can be found from the game's Asset Ripper output in Unity
+                        Collider[] hitColliders = Physics.OverlapBox(attackArea.position, attackArea.localScale, Quaternion.identity, playerLayer);
+                        if (hitColliders.Length > 0)
                         {
-                            LogIfDebugBuild($"JPOGTrex: grab attack hit player: [{playerControllerB.playerClientId}]!");
-                            timeSinceHittingLocalPlayer = 0f;
-                            LogIfDebugBuild($"JPOGTrex: Killing player: [{playerControllerB.playerClientId}]!");
-                            StartCoroutine(KillPlayer((int)playerControllerB.playerClientId));
-                            hitConnect = true;
+                            foreach (var player in hitColliders)
+                            {
+                                PlayerControllerB playerControllerB = MeetsStandardPlayerCollisionConditions(player);
+                                if (playerControllerB != null)
+                                {
+                                    if(playerControllerB == RoundManager.Instance.playersManager.localPlayerController)
+                                    {
+                                        LogIfDebugBuild($"JPOGTrex: grab attack hit player: [{playerControllerB.playerClientId}]!");
+                                        timeSinceHittingLocalPlayer = 0f;
+                                        LogIfDebugBuild($"JPOGTrex: Killing player: [{playerControllerB.playerClientId}]!");
+                                        StartCoroutine(KillPlayer((int)playerControllerB.playerClientId));
+                                        hitConnect = true;
+                                    }
+                                }
+                            }
                         }
-                    }
+                        else
+                        {
+                            LogIfDebugBuild("Grab attack hit 0 players");
+                        }*/
+            //NEW
+            LogIfDebugBuild("JPOGTrex: Checking if Grab attack hit");
+            float playerIsHittable = 10f;
+            if(targetPlayer != null)
+            {
+                float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.transform.position);
+                LogIfDebugBuild($"JPOGTrex: Distance to player = [{distanceToPlayer}]");
+                if (distanceToPlayer <= playerIsHittable)
+                {
+
+                    LogIfDebugBuild($"JPOGTrex: The target Player distance = [{distanceToPlayer}] || Required distance to hit = [{playerIsHittable}]");
+                    LogIfDebugBuild($"JPOGTrex: grab attack has hit player: [{targetPlayer.playerClientId}]!");
+                    timeSinceHittingLocalPlayer = 0f;
+                    hitConnect = true;
+                }
+                else
+                {
+                    LogIfDebugBuild("Grab attack hit 0 players");
+                    hitConnect = false;
                 }
             }
             else
             {
-                LogIfDebugBuild("Grab attack hit 0 players");
+                LogIfDebugBuild("JPOGTrex: No target player assigned!");
             }
         }
 
         //Player body Interaction
         private void TakeBodyInMouth(int playerId)
         {
-            PlayerControllerB killPlayer = StartOfRound.Instance.allPlayerScripts[playerId];           
-            if (killPlayer != null)
+            LogIfDebugBuild($"JPOGTrex: Taking boddy of player [{playerId}] in mouth");
+            DeadBodyInfo killedPlayerBody = StartOfRound.Instance.allPlayerScripts[playerId].deadBody;           
+            if (killedPlayerBody != null)
             {
-                DeadBodyInfo body = killPlayer.deadBody;
-                body.attachedTo = mouthGrip;
-                body.attachedLimb = body.bodyParts[5];
-                body.matchPositionExactly = true;
+                killedPlayerBody.attachedTo = mouthGrip;
+                killedPlayerBody.attachedLimb = killedPlayerBody.bodyParts[5];
+                killedPlayerBody.matchPositionExactly = true;
 
                 //The T-rex Should be able to multikill so all bodies it grabs are added to the list
-                carryingBodies.Add(body);
+                carryingBodies.Add(killedPlayerBody);
             }
         }
 
         private void DropCarriedBody()
         {
+            LogIfDebugBuild($"JPOGTrex: Checking if Trex has bodies in mouth");
             if (carryingBodies.Count > 0)
             {
+                LogIfDebugBuild($"JPOGTrex: Caryring [{carryingBodies.Count}] bodies in mouth");
                 //All grabbed bodies should be dropped by the Trex
-                foreach (DeadBodyInfo carryingbody in carryingBodies)
+                foreach (var carryingBody in carryingBodies)
                 {
+                    if (carryingBody == null)
+                    {
+                        LogIfDebugBuild("JPOGTrex: Found a null body in the carryingBodies list!");
+                        continue;
+                    }
+                    LogIfDebugBuild($"JPOGTrex: Dropping body from mouth");
                     carryingBody.speedMultiplier = 12f;
                     carryingBody.attachedTo = null;
                     carryingBody.attachedLimb = null;
                     carryingBody.matchPositionExactly = false;
-                    carryingBody = null;
                 }
                 //Clear the list of bodies bein
                 carryingBodies.Clear();
@@ -802,11 +872,11 @@ namespace JPOGTrex {
             {
                 agent.speed = Mathf.Clamp(agent.speed, 2f, 0f);
             }
-            LogIfDebugBuild($"Killing player: [{playerId}]");
+            LogIfDebugBuild($"JPOGTrex: begin Killing player: [{playerId}]");
             PlayerControllerB killPlayer = StartOfRound.Instance.allPlayerScripts[playerId];
             if (!isEnemyDead)
             {
-                LogIfDebugBuild("JPOGTrex: T-rex is still alive");
+                LogIfDebugBuild("JPOGTrex: T-rex is still alive, killing player Continues");
                 //DoAnimationClientRpc("killEnemy");
             }
             if (GameNetworkManager.Instance.localPlayerController == killPlayer)
@@ -923,11 +993,11 @@ namespace JPOGTrex {
         //Loads the model and calls the methods to set the mouthgrip with the bone.
         private void SetBones()
         {
-            GameObject model = GameObject.Find("D");
-            if (model != null)
+            modelD = GameObject.Find("D");
+            if (modelD != null)
             {
-                LogIfDebugBuild($"trying to find target bone for the mouthBone from: [{model}]");
-                mouthBone = FindChildRecursive(model.transform, "Mouth");
+                LogIfDebugBuild($"trying to find target bone for the mouthBone from: [{modelD}]");
+                mouthBone = FindChildRecursive(modelD.transform, "Mouth");
             }
             if (mouthBone != null)
             {
@@ -941,7 +1011,6 @@ namespace JPOGTrex {
         //Search Through the model to find the bone that will be used to update Mouthgrip's transform
         private Transform FindChildRecursive(Transform parent, string childName)
         {
-            Transform boneToAttachTo = new Transform();
             LogIfDebugBuild($"Child name to search for: [{childName}]");
             foreach (Transform child in parent)
             {
@@ -954,18 +1023,10 @@ namespace JPOGTrex {
                 Transform found = FindChildRecursive(child, childName);
                 if (found != null)
                 {
-                    boneToAttachTo = found;
                     return found;
                 }
             }
-            if (boneToAttachTo != null)
-            {
-                return boneToAttachTo;
-            }
-            else
-            {
-                return null;
-            }
+            return null;
         }
         //This is should update the mouthgrip transform of the Trex to transform of the bone.
         //Effectively Making it look like the player's body is attached/grabbed by the T-rex's mouth during the animation instead of blinking/warping to the static location of the mouthgrip as seen in Unity
