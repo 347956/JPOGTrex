@@ -29,10 +29,8 @@ namespace JPOGTrex {
         private List<DeadBodyInfo>carryingBodies = new List<DeadBodyInfo>();
         private GameObject modelD = null!;
         public float scrutiny = 1f;
-        public float[] playerStealthMeters = new float[4];
 #pragma warning restore 0649
         private Coroutine? killPlayerCoroutine = null!;
-        public int suspicionLevel;
         private float timeSinceHittingLocalPlayer;
         private float timeSinceNewRandPos;
         private Vector3 positionRandomness;
@@ -90,7 +88,7 @@ namespace JPOGTrex {
             // like a voice clip or an sfx clip to play when changing to that specific behavior state.
             currentBehaviourStateIndex = (int)State.SearchingForPlayer;
             // We make the enemy start searching. This will make it start wandering around.
-            StartSearch(transform.position);
+            //StartSearch(transform.position);
         }
 
         public override void Update() {
@@ -110,7 +108,7 @@ namespace JPOGTrex {
             timeSinceNewRandPos += Time.deltaTime;
 
             var state = currentBehaviourStateIndex;
-            if (targetPlayer != null && (state == (int)State.GrabPlayer || state == (int)State.GrabbedPlayer || state == (int)State.GrabbingPlayer)) {
+            if (targetPlayer != null && (state == (int)State.GrabPlayer || state == (int)State.GrabbedPlayer || state == (int)State.GrabbingPlayer || state == (int)State.EatingPlayer)) {
                 turnCompass.LookAt(targetPlayer.gameplayCamera.transform.position);
                 transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(new Vector3(0f, turnCompass.eulerAngles.y, 0f)), 4f * Time.deltaTime);
             }
@@ -133,6 +131,8 @@ namespace JPOGTrex {
                 case (int)State.SearchingForPlayer:
                     if (previousState != State.SearchingForPlayer)
                     {
+                        LogIfDebugBuild("JPOGTrex: Entered behaviourState [SearchingForPlayer]");
+                        StartSearch(transform.position);
                         agent.speed = defaultSpeed;
                         SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.SearchingForPlayer;
@@ -141,7 +141,7 @@ namespace JPOGTrex {
                     CheckLineOfSightServerRpc();
                     if (targetPlayer != null)
                     {
-                        LogIfDebugBuild("Start Target Player");
+                        LogIfDebugBuild("JPOGTrex: Start Target Player");
                         StopSearch(currentSearch);
                         SwitchToBehaviourClientRpc((int)State.SpottedPlayer);
                         break;
@@ -151,6 +151,7 @@ namespace JPOGTrex {
                 case (int)State.SpottedPlayer:
                     if (previousState != State.SpottedPlayer && !isSniffingStarted)
                     {
+                        LogIfDebugBuild("JPOGTrex: Entered behaviourState [SpottedPlayer]");
                         agent.speed = 0f;
                         sniffing = true;
                         LogIfDebugBuild("JPOGTrex: Spotted Player!");
@@ -172,6 +173,7 @@ namespace JPOGTrex {
                     //Because the T-rex's walking animation gets set in the spotted player phase we do not want to set it again to avoid bugging animations
                     if(previousState != State.SpottedPlayer && previousState != State.Roaring)
                     {
+                        LogIfDebugBuild("JPOGTrex: Entered behaviourState [Roaring]");
                         agent.speed = 0f;
                         SetWalkingAnimationServerRpc(agent.speed);
                     } 
@@ -195,14 +197,15 @@ namespace JPOGTrex {
                 case (int)State.ChasingPlayer:
                     if (previousState != State.ChasingPlayer)
                     {
+                        LogIfDebugBuild("JPOGTrex: Entered behaviourState [ChasingPlayer]");
                         agent.speed = defaultSpeed * 2f;
                         previousState = State.ChasingPlayer;
                         SetWalkingAnimationServerRpc(agent.speed);
                     }
                     //Check if the target player is still visible and in chasing range
                     //If no longer visible, the target player is set to null
-                    CheckLineOfSightDuringChaseServerRpc();
-/*                    if ( targetPlayer != null &&
+                    //CheckLineOfSightDuringChaseServerRpc();
+                    if (targetPlayer != null &&
                         (Vector3.Distance(transform.position, targetPlayer.transform.position) > 70 && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
                     {
                         LogIfDebugBuild($"JPOGTrex: Stop Target Player distance = [{Vector3.Distance(transform.position, targetPlayer.transform.position)}] allowed distance = [70]");
@@ -210,10 +213,10 @@ namespace JPOGTrex {
                         StartSearch(transform.position);
                         SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                         return;
-                    }*/
+                    }
                     //If there is no target player, the T-rex will try and target the closes player
                     //Not this will only be the case if the T-rex is still in/set to chasing mode but without setting a target first
-                    if(targetPlayer == null)
+                    if (targetPlayer == null)
                     {
                         LogIfDebugBuild($"JPOGTrex: No TargetPlayer. Checking for closest player");
                         if (!TargetClosestPlayerInAnyCase())
@@ -239,6 +242,7 @@ namespace JPOGTrex {
                 case (int)State.GrabPlayer:
                     if (previousState != State.GrabPlayer)
                     {
+                        LogIfDebugBuild("JPOGTrex: Entered behaviourState [GrabPlayer]");
                         agent.speed = defaultSpeed / 2;
                         SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.GrabPlayer;
@@ -270,7 +274,8 @@ namespace JPOGTrex {
 
                 case (int)State.GrabbingPlayer:
                     if (previousState != State.GrabbingPlayer)
-                    {                        
+                    {
+                        LogIfDebugBuild("JPOGTrex: Entered behaviourState [GrabbingPlayer]");
                         agent.speed = 0;
                         previousState = State.GrabbingPlayer;
                         SetWalkingAnimationServerRpc(agent.speed);
@@ -294,6 +299,7 @@ namespace JPOGTrex {
                 case (int)State.EatingPlayer:
                     if (previousState != State.EatingPlayer)
                     {
+                        LogIfDebugBuild("JPOGTrex: Entered behaviourState [EatingPlayer]");
                         agent.speed = 0f;
                         SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.EatingPlayer;
@@ -315,6 +321,7 @@ namespace JPOGTrex {
                     int rndIdle = enemyRandom.Next(4);
                     if (rndIdle == 1)
                     {
+                        LogIfDebugBuild("JPOGTrex: Entered behaviourState [Idle]");
                         agent.speed = 1f;
                         DoAnimationClientRpc("lookingIdle");
                         previousState = State.Idle;
@@ -406,6 +413,13 @@ namespace JPOGTrex {
         private void SetWalkingAnimationServerRpc(float speed)
         {
             SetWalkingAnimation(speed);
+            //SetWalkingAnimationClientRpc(speed);
+        }
+
+        [ClientRpc]
+        private void SetWalkingAnimationClientRpc(float speed)
+        {
+
         }
 
         [ServerRpc(RequireOwnership = false)]
@@ -887,31 +901,26 @@ namespace JPOGTrex {
         {
             if (currentSpeed == 0f)
             {
-                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"stopWalk\".");
                 DoAnimationClientRpc("stopWalk");
                 return;
             }
-            else if (currentSpeed <= 4f && currentSpeed > 1f)
+            else if (currentSpeed > 1f && currentSpeed <= 4f)
             {
-                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"startWalk\".");
                 DoAnimationClientRpc("startWalk");
                 return;
             }
             else if (currentSpeed > 4f && currentSpeed <= 6f)
             {
-                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"chasingRun\".");
                 DoAnimationClientRpc("chasingRun");
                 return;
             }
             else if (currentSpeed > 0f && currentSpeed <= 1f)
             {
-                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"slowDown\".");
                 DoAnimationClientRpc("slowDown");
                 return;
             }
             else if (currentSpeed > 6f)
             {
-                LogIfDebugBuild($"Current Speed = [{currentSpeed}] beginning animation: \"speedUp\".");
                 DoAnimationClientRpc("speedUp");
                 return;
             }
@@ -1078,10 +1087,8 @@ namespace JPOGTrex {
                     base.transform.rotation = Quaternion.RotateTowards(rotateFrom, rotateTo, 60f * Time.deltaTime);
                 }
             }
-            suspicionLevel = 2;
             inKillAnimation = false;
             killPlayerCoroutine = null;
-            targetPlayer = null;
             yield break;
         }
     }
