@@ -630,11 +630,6 @@ PrefabInstance:
       propertyPath: m_Name
       value: JPOG-TrexV2
       objectReference: {fileID: 0}
-    - target: {fileID: 7852763459864048508, guid: 2da7a4237e5c30e4ab083e442165fd14,
-        type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 1.54
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

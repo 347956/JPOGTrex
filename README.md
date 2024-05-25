@@ -26,16 +26,22 @@ We have configured [JPOGTrex.csproj](/Plugin/JPOGTrex.csproj) to build a Thunder
 
 
 ## Trouble shooting 🛠️
-Some tips when encountering problems in this project or your own.
+This section is mostly for myself to check how things should be made, or what to check if something isn't working as intended.  
+It should give some tips when encountering problems in this project or your own.
 
 ### General 
-- Don't forget to replace the build dll into: "UnityProject\Assets\Plugins"
+- Don't forget to replace the build dll into: "UnityProject\Assets\Plugins" so the game object has all scripts and properties it needs available
 - Don't forget to add the prefab or other assets to the assetbundle in Unity
+- Important events or manipulation of the model should be handles with networking. e.g. [ServerRpc] > [ClientRpc] > method()
+  - If not done correctly it could cause syncing issues e.g. the body of the player being grabbed by the enemy for one player but laying on the ground for the other 
+- Hit registration should be done server side: "[ServerRpc] > method()", to prevent latency of "[ServerRpc] > [ClientRpc] > method()" effecting the hit registration.
 
 ### Animations 
 - Most animation in this project are started from the "any event". I am not sure if this is best practice, but it makes animating a lot easier.
 - Coroutine can be can be used to execute code over frames. Usefull for waiting on animaitons to finish or executing logic at certain points during the animations.
 - Enabling "Has Exit Time" makes animation B wait for animation A to finish in a transition of A > B.
+- The T-rex has a "mouthGrip" transform which is bind to the "mouthBone" of the model.
+  - This way the mouthGrip's transform location can be updated in the code with the mouthBone's transform location, making the mouthGrip match the position of the T-rex's mouth during animations.
 
 ## Credits 🗣️
 
@@ -45,4 +51,5 @@ Some tips when encountering problems in this project or your own.
 - [XuuXiao](https://github.com/XuuXiao/) - porting LC-ExampleEnemy for LC v50  
 - [nomnomab](https://github.com/nomnomab) - [Lethal Company Project Patcher](https://github.com/nomnomab/lc-project-patcher) - used for the Unity Project  
 - [AlbinoGeek](https://github.com/AlbinoGeek) - issue template  
-- [HENDRIX-ZT2 ](https://github.com/HENDRIX-ZT2) & [AdventureT](https://github.com/AdventureT) - creating the blender plugin: [jpog-blender](https://github.com/HENDRIX-ZT2/jpog-blender) that is able to read ".tmd" files from the game: [Jurassic Park: Operation Genisis](https://en.wikipedia.org/wiki/Jurassic_Park:_Operation_Genesis)
+- [HENDRIX-ZT2 ](https://github.com/HENDRIX-ZT2) & [AdventureT](https://github.com/AdventureT) - creating the blender plugin: [jpog-blender](https://github.com/HENDRIX-ZT2/jpog-blender) that is able to read ".tmd" files from the game:  
+[Jurassic Park: Operation Genisis](https://en.wikipedia.org/wiki/Jurassic_Park:_Operation_Genesis)
