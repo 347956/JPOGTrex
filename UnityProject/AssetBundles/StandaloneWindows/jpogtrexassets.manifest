@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 4083291309
+CRC: 2688983004
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 5ce5560d743a51c1b1561c358b63403a
+    Hash: 4dd08787d2770bcf2cb74a4953131230
   TypeTreeHash:
     serializedVersion: 2
-    Hash: 18fa54c3e631f9e4a09389bf7185d642
+    Hash: ff37301ef2ca01537fca6727e9ce8e02
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 5ce5560d743a51c1b1561c358b63403a
+    Hash: 4dd08787d2770bcf2cb74a4953131230
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -99,22 +99,29 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_Shake_Lp10.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Inj_Lp00.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Run_lp00.anim
+- Assets/ModAssets/JPOGTrex/Audio/EatingPlayer01.mp3
+- Assets/ModAssets/JPOGTrex/Materials/Trex_opa.png
+- Assets/ModAssets/JPOGTrex/Audio/shaking01.mp3
 - Assets/ModAssets/JPOGTrex/Audio/TrexRoar01.wav
 - Assets/ModAssets/JPOGTrex/Audio/TrexHurt.wav
 - Assets/ModAssets/JPOGTrex/Audio/TrexGrowl01.wav
+- Assets/ModAssets/JPOGTrex/Audio/Sniff01.mp3
 - Assets/ModAssets/JPOGTrex/Models/JPOG-TrexV2.fbx
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Chew_lp01.anim
+- Assets/ModAssets/JPOGTrex/Audio/Bite01.mp3
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Hit_Lt01.anim
 - Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrex Video.webm
 - Assets/ModAssets/JPOGTrex/Materials/Trex.png
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Walk_lp00.anim
 - Assets/ModAssets/JPOGTrex/JPOGTRexAnimator.controller
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Snap_Md_Lp11.anim
+- Assets/ModAssets/JPOGTrex/Audio/Damage01.mp3
 - Assets/ModAssets/JPOGTrex/Materials/JPOGTrex.mat
+- Assets/ModAssets/JPOGTrex/Audio/IdleSound01.mp3
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Call_01_lp11.anim
+- Assets/ModAssets/JPOGTrex/Audio/IdleBreath01.mp3
 - Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrexTN.asset
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Snif_Lp01.anim
-- Assets/ModAssets/JPOGTrex/Materials/Trex_opa.png
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Tail_Flck_Lp11.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Eat_lo_lp01.anim
+- Assets/ModAssets/JPOGTrex/Animations/TRex_Tail_Flck_Lp11.anim
 Dependencies: []
