@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 4083291309
+CRC: 2763735744
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 5ce5560d743a51c1b1561c358b63403a
+    Hash: 909e79c6f83c17746d35155746849ab5
   TypeTreeHash:
     serializedVersion: 2
-    Hash: 18fa54c3e631f9e4a09389bf7185d642
+    Hash: ff37301ef2ca01537fca6727e9ce8e02
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 5ce5560d743a51c1b1561c358b63403a
+    Hash: 909e79c6f83c17746d35155746849ab5
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -99,11 +99,13 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_Shake_Lp10.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Inj_Lp00.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Run_lp00.anim
+- Assets/ModAssets/JPOGTrex/Audio/EatingPlayer01.mp3
 - Assets/ModAssets/JPOGTrex/Audio/TrexRoar01.wav
 - Assets/ModAssets/JPOGTrex/Audio/TrexHurt.wav
 - Assets/ModAssets/JPOGTrex/Audio/TrexGrowl01.wav
 - Assets/ModAssets/JPOGTrex/Models/JPOG-TrexV2.fbx
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Chew_lp01.anim
+- Assets/ModAssets/JPOGTrex/Audio/Bite01.mp3
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Hit_Lt01.anim
 - Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrex Video.webm
 - Assets/ModAssets/JPOGTrex/Materials/Trex.png
@@ -116,5 +118,6 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Snif_Lp01.anim
 - Assets/ModAssets/JPOGTrex/Materials/Trex_opa.png
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Tail_Flck_Lp11.anim
+- Assets/ModAssets/JPOGTrex/Audio/Damage01.mp3
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Eat_lo_lp01.anim
 Dependencies: []

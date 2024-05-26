@@ -3,10 +3,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Xml.Serialization;
 using GameNetcodeStuff;
 using LethalLib.Modules;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.Assertions.Must;
 using static MonoMod.Cil.RuntimeILReferenceBag.FastDelegateInvokers;
 
 namespace JPOGTrex {
@@ -25,6 +27,7 @@ namespace JPOGTrex {
         public Transform attackArea = null!;
         public Transform mouthGrip = null!;
         public Transform mouthAttackHitBox = null!;
+        public AudioSource trexRoarSFX = null!;
         private Transform? mouthBone = null!;
         private List<DeadBodyInfo>carryingBodies = new List<DeadBodyInfo>();
         private GameObject modelD = null!;
@@ -358,8 +361,19 @@ namespace JPOGTrex {
             }
         }
 
-
         //Network Stuff
+        private void PlayAudioClip(AudioClip audioClip)
+        {
+            creatureVoice.PlayOneShot(audioClip);
+        }
+        private void PlayFootStepAudioClip(AudioClip audioClip)
+        {
+            creatureSFX.PlayOneShot(audioClip);
+        }
+        private void PlayTrexRoarAudioClipt(AudioClip audioClip)
+        {
+            trexRoarSFX.PlayOneShot(audioClip);
+        }
         [ServerRpc(RequireOwnership = false)]
         private void EatPlayerServerRpc()
         {
