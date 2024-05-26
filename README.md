@@ -43,6 +43,8 @@ It should give some tips when encountering problems in this project or your own.
 - Enabling "Has Exit Time" makes animation B wait for animation A to finish in a transition of A > B.
 - The T-rex has a "mouthGrip" transform which is bind to the "mouthBone" of the model.
   - This way the mouthGrip's transform location can be updated in the code with the mouthBone's transform location, making the mouthGrip match the position of the T-rex's mouth during animations.
+- Using animation events, sounds can be played at a certain frame in the animation.
+  - This way footstep sounds can be synced with the feet hitting the ground.
 
 ## Credits 🗣️
 
