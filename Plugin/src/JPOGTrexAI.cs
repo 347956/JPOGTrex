@@ -372,7 +372,7 @@ namespace JPOGTrex {
         }
         private void PlayTrexRoarAudioClipt(AudioClip audioClip)
         {
-            trexRoarSFX.PlayOneShot(audioClip);
+            trexRoarSFX.PlayOneShot(audioClip, 2f);
         }
         [ServerRpc(RequireOwnership = false)]
         private void EatPlayerServerRpc()

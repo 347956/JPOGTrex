@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 2763735744
+CRC: 3878447914
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 909e79c6f83c17746d35155746849ab5
+    Hash: d6cf92b79343aea439e8480d67ee4fbb
   TypeTreeHash:
     serializedVersion: 2
     Hash: ff37301ef2ca01537fca6727e9ce8e02
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 909e79c6f83c17746d35155746849ab5
+    Hash: d6cf92b79343aea439e8480d67ee4fbb
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -100,9 +100,12 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Inj_Lp00.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Run_lp00.anim
 - Assets/ModAssets/JPOGTrex/Audio/EatingPlayer01.mp3
+- Assets/ModAssets/JPOGTrex/Materials/Trex_opa.png
+- Assets/ModAssets/JPOGTrex/Audio/shaking01.mp3
 - Assets/ModAssets/JPOGTrex/Audio/TrexRoar01.wav
 - Assets/ModAssets/JPOGTrex/Audio/TrexHurt.wav
 - Assets/ModAssets/JPOGTrex/Audio/TrexGrowl01.wav
+- Assets/ModAssets/JPOGTrex/Audio/Sniff01.mp3
 - Assets/ModAssets/JPOGTrex/Models/JPOG-TrexV2.fbx
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Chew_lp01.anim
 - Assets/ModAssets/JPOGTrex/Audio/Bite01.mp3
@@ -112,12 +115,13 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Walk_lp00.anim
 - Assets/ModAssets/JPOGTrex/JPOGTRexAnimator.controller
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Snap_Md_Lp11.anim
+- Assets/ModAssets/JPOGTrex/Audio/Damage01.mp3
 - Assets/ModAssets/JPOGTrex/Materials/JPOGTrex.mat
+- Assets/ModAssets/JPOGTrex/Audio/IdleSound01.mp3
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Call_01_lp11.anim
+- Assets/ModAssets/JPOGTrex/Audio/IdleBreath01.mp3
 - Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrexTN.asset
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Snif_Lp01.anim
-- Assets/ModAssets/JPOGTrex/Materials/Trex_opa.png
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Tail_Flck_Lp11.anim
-- Assets/ModAssets/JPOGTrex/Audio/Damage01.mp3
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Eat_lo_lp01.anim
+- Assets/ModAssets/JPOGTrex/Animations/TRex_Tail_Flck_Lp11.anim
 Dependencies: []
