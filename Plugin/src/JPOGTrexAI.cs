@@ -55,6 +55,16 @@ namespace JPOGTrex {
         private float attackRange;
         private bool doneEating = false;
         private bool shakingBoddies;
+        private int visionRangeSearching = 70;
+        private int visionRangeChase = 50;
+        private float suspicionLevel;
+        private float maxSuspicionLevel = 100f;
+        private float increasRateSuspicion = 10f;
+        private float decreaseRateSuspicion = 5f;
+        private float timeSinceSeeingPlayerMove;
+        private float DecreaseSuspicionTimer;
+        private Vector3 lastKnownPositionTargetPlayer;
+        private bool isMovingTowardsLastKnownPosition;
 
         enum State
         {
@@ -108,6 +118,7 @@ namespace JPOGTrex {
                 return;
             }
             timeSinceHittingLocalPlayer += Time.deltaTime;
+            timeSinceSeeingPlayerMove += Time.deltaTime;
             timeSinceNewRandPos += Time.deltaTime;
 
             var state = currentBehaviourStateIndex;
@@ -142,12 +153,18 @@ namespace JPOGTrex {
                     }
                     //FoundClosestPlayerInRangeServerRpc();
                     CheckLineOfSightServerRpc();
-                    if (targetPlayer != null)
+                    LogIfDebugBuild($"JPOGTrex: seconds since a player was moving = [{timeSinceSeeingPlayerMove}]");
+                    if (targetPlayer != null && suspicionLevel == 100f)
                     {
-                        LogIfDebugBuild("JPOGTrex: Start Target Player");
+                        LogIfDebugBuild($"JPOGTrex: Start Target Player. Suspicion level = [{suspicionLevel}]");
                         StopSearch(currentSearch);
                         SwitchToBehaviourClientRpc((int)State.SpottedPlayer);
                         break;
+                    }
+                    if (timeSinceSeeingPlayerMove >= DecreaseSuspicionTimer + 2f)
+                    {
+                        DecreaseSuspicionServerRpc();
+                        decreaseRateSuspicion = timeSinceSeeingPlayerMove;
                     }
                     break;
 
@@ -208,26 +225,37 @@ namespace JPOGTrex {
                     //Check if the target player is still visible and in chasing range
                     //If no longer visible, the target player is set to null
                     //CheckLineOfSightDuringChaseServerRpc();
+
                     if (targetPlayer != null &&
-                        (Vector3.Distance(transform.position, targetPlayer.transform.position) > 70 && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
+                        (Vector3.Distance(transform.position, targetPlayer.transform.position) > visionRangeChase && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
                     {
                         LogIfDebugBuild($"JPOGTrex: Stop Target Player distance = [{Vector3.Distance(transform.position, targetPlayer.transform.position)}] allowed distance = [70]");
+                        lastKnownPositionTargetPlayer = targetPlayer.transform.position;
                         targetPlayer = null;
-                        StartSearch(transform.position);
-                        SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
+                        isMovingTowardsLastKnownPosition = true;
+                        LogIfDebugBuild($"JPOGTrex: Moving to last know positon of the targetPlayer");
+                        SetDestinationToPosition(lastKnownPositionTargetPlayer);
                         return;
                     }
-                    //If there is no target player, the T-rex will try and target the closes player
-                    //Not this will only be the case if the T-rex is still in/set to chasing mode but without setting a target first
-                    if (targetPlayer == null)
+                    if (isMovingTowardsLastKnownPosition && Vector3.Distance(transform.position, lastKnownPositionTargetPlayer) < 10f)
                     {
-                        LogIfDebugBuild($"JPOGTrex: No TargetPlayer. Checking for closest player");
-                        if (!TargetClosestPlayerInAnyCase())
+                        isMovingTowardsLastKnownPosition= false;
+                        LogIfDebugBuild("JPOGTrex: Reached last known position. Checking for closest player in range"); 
+                        if (!FoundClosestPlayerInRange())
                         {
                             LogIfDebugBuild("JPOGTrex: No players found. Return to searching for player.");
+                            suspicionLevel = 60;
+                            StartSearch(transform.position);
                             SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                             return;
                         }
+                    }
+                    if(targetPlayer == null && !isMovingTowardsLastKnownPosition)
+                    {
+                        LogIfDebugBuild("JPOGTrex: No players found in range. Return to searching for player.");
+                        suspicionLevel= 60;
+                        StartSearch(transform.position);
+                        SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
                     }
                     if(targetPlayer != null)
                     {
@@ -374,6 +402,32 @@ namespace JPOGTrex {
         {
             trexRoarSFX.PlayOneShot(audioClip, 2f);
         }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void IncreaseSuspicionServerRpc()
+        {
+            IncreaseSuspicionClientRpc();
+        }
+
+        [ClientRpc]
+        private void IncreaseSuspicionClientRpc()
+        {
+            IncreaseSuspicion();
+        }
+
+
+        [ServerRpc(RequireOwnership = false)]
+        private void DecreaseSuspicionServerRpc()
+        {
+            DecreaseSuspicionClientRpc();
+        }
+
+        [ClientRpc]
+        private void DecreaseSuspicionClientRpc()
+        {
+            DecreaseSuspicion();
+        }
+
         [ServerRpc(RequireOwnership = false)]
         private void EatPlayerServerRpc()
         {
@@ -594,9 +648,9 @@ namespace JPOGTrex {
             return true;
         }
 
-        private bool FoundClosestPlayerInRange(float range = 10f, float senseRange = 2f)
+        private bool FoundClosestPlayerInRange(float range = 20f, float senseRange = 5f)
         {
-            TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: true);
+            TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: true, 60f);
             if (targetPlayer == null)
             {
                 // Couldn't see a player, so we check if a player is in sensing distance instead
@@ -614,7 +668,7 @@ namespace JPOGTrex {
 
         private void CheckLineOfSightDuringChase()
         {
-            PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(60f, 70, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
+            PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(60f, visionRangeChase, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
             if (allPlayersInLineOfSight != null)
             {
                 LogIfDebugBuild($"JPOGTrex: Checking LOS in chase. allPlayersInLineOfSight length: {allPlayersInLineOfSight.Length}");
@@ -624,6 +678,7 @@ namespace JPOGTrex {
                     // Perform null checks on playerControllerB and targetPlayer
                     if (playerControllerB == null || targetPlayer == null)
                     {
+                        LogIfDebugBuild($"JPOGTrex: Checking LOS in chase. No targetPlayer or player in LOS");
                         continue;
                     }
                     LogIfDebugBuild($"JPOGTrex: Checking LOS in chase. targetPlayer's id = [{targetPlayer.playerClientId}] || player in Line of sight id = [{playerControllerB.playerClientId}]");
@@ -634,19 +689,31 @@ namespace JPOGTrex {
                         continue;
                     }
                 }
-                if (targetPlayer == null)
+                if (targetPlayer != null && !IsPlayerInLineOfSight(targetPlayer))
                 {
-                    LogIfDebugBuild($"JPOGTrex: Target player and player(s) in LOS did not match! Trying to target player in close proximity!");
-                    FoundClosestPlayerInRange();
+                    LogIfDebugBuild($"JPOGTrex: Target player and player in LOS matched, staying on target.");
+                    targetPlayer = null;
                 }
             }
-
         }
-
+        private bool IsPlayerInLineOfSight(PlayerControllerB player)
+        {
+            return CheckLineOfSightForPosition(player.transform.position);
+        }
+        private void IncreaseSuspicion()
+        {
+            suspicionLevel = Mathf.Clamp(suspicionLevel + increasRateSuspicion, 0, maxSuspicionLevel);
+            LogIfDebugBuild($"JPOGTrex: Suspicion level increased. New value = [{suspicionLevel}]");
+        }
+        private void DecreaseSuspicion()
+        {
+            suspicionLevel = Mathf.Clamp(suspicionLevel - decreaseRateSuspicion, 0, maxSuspicionLevel);
+            LogIfDebugBuild($"JPOGTrex: Suspicion level decreased. New value = [{suspicionLevel}]");
+        }
 
         private void CheckLineOfSight()
         {
-            PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(60f, 70, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
+            PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(60f, visionRangeSearching, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
             if (allPlayersInLineOfSight != null)
             {
                 LogIfDebugBuild($"JPOGTrex: allPlayersInLineOfSight length: {allPlayersInLineOfSight.Length}"); 
@@ -659,10 +726,12 @@ namespace JPOGTrex {
                         LogIfDebugBuild($"JPOGTrex: Checking player with ID {playerControllerB.playerClientId}");
                         if (CheckIfPlayerIsmoving(playerControllerB))
                         {
+                            IncreaseSuspicionServerRpc();
+                            timeSinceSeeingPlayerMove = 0;
                             LogIfDebugBuild($"JPGOTrex: Saw player [{playerControllerB.playerClientId}] moving");
                             targetPlayer = playerControllerB;
                             break;
-                        }
+                        }                        
                     }
                 }
             }
@@ -1077,7 +1146,7 @@ namespace JPOGTrex {
             }
             if (GameNetworkManager.Instance.localPlayerController == killPlayer)
             {
-                killPlayer.KillPlayer(Vector3.zero, spawnBody: true, CauseOfDeath.Mauling);
+                killPlayer.KillPlayer(Vector3.zero, spawnBody: true, CauseOfDeath.Mauling, 1);
             }
             float startTime = Time.timeSinceLevelLoad;
             yield return new WaitUntil(() => killPlayer.deadBody != null || Time.timeSinceLevelLoad - startTime > 2f);
