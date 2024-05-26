@@ -8,7 +8,8 @@ A video Tutorial can be found [here](https://www.youtube.com/watch?v=NZ_F8wDczzM
  > The wiki page might be slightly out of date regarding how the JPOGTrex prefab is constructed.
 
 > [!NOTE]  
-> I do not own any of the Assets nor made them myself. The models, animations and some of the audio clips were made by: [Blue Tongue Entertainment](https://en.wikipedia.org/wiki/Blue_Tongue_Entertainment), which was closed down in 2011.
+> I do not own any of the Assets nor made them myself. The models, animations and some of the audio clips were made by: [Blue Tongue Entertainment](https://en.wikipedia.org/wiki/Blue_Tongue_Entertainment), which was closed down in 2011.  
+> I also got some sounds for the T-rex from the game [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/).
 
 ## Dependencies ✅
 
@@ -51,5 +52,5 @@ It should give some tips when encountering problems in this project or your own.
 - [XuuXiao](https://github.com/XuuXiao/) - porting LC-ExampleEnemy for LC v50  
 - [nomnomab](https://github.com/nomnomab) - [Lethal Company Project Patcher](https://github.com/nomnomab/lc-project-patcher) - used for the Unity Project  
 - [AlbinoGeek](https://github.com/AlbinoGeek) - issue template  
-- [HENDRIX-ZT2 ](https://github.com/HENDRIX-ZT2) & [AdventureT](https://github.com/AdventureT) - creating the blender plugin: [jpog-blender](https://github.com/HENDRIX-ZT2/jpog-blender) that is able to read ".tmd" files from the game:  
-[Jurassic Park: Operation Genisis](https://en.wikipedia.org/wiki/Jurassic_Park:_Operation_Genesis)
+- [HENDRIX-ZT2 ](https://github.com/HENDRIX-ZT2) & [AdventureT](https://github.com/AdventureT) - creating the blender plugin: [jpog-blender](https://github.com/HENDRIX-ZT2/jpog-blender) that is able to read ".tmd" files from the game: [Jurassic Park: Operation Genisis](https://en.wikipedia.org/wiki/Jurassic_Park:_Operation_Genesis)
+- [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/) - I use some of the sounds from their {T-rex](https://youtu.be/VTaOiCKarqY?si=gmsnWuaOiKZl15iR)
