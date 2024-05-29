@@ -63,6 +63,7 @@ namespace JPOGTrex {
         private float decreaseRateSuspicion = 5f;
         private float timeSinceSeeingPlayerMove;
         private float DecreaseSuspicionTimer;
+        private float previousSpeed;
         private Vector3 lastKnownPositionTargetPlayer;
         private bool isMovingTowardsLastKnownPosition;
 
@@ -99,9 +100,9 @@ namespace JPOGTrex {
             isDeadAnimationDone = false;
             // NOTE: Add your behavior states in your enemy script in Unity, where you can configure fun stuff
             // like a voice clip or an sfx clip to play when changing to that specific behavior state.
-            currentBehaviourStateIndex = (int)State.SearchingForPlayer;
+            SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
             // We make the enemy start searching. This will make it start wandering around.
-            //StartSearch(transform.position);
+            //StartSearch(transform.position);            
         }
 
         public override void Update() {
@@ -145,10 +146,11 @@ namespace JPOGTrex {
                 case (int)State.SearchingForPlayer:
                     if (previousState != State.SearchingForPlayer)
                     {
+                        StopAllCoroutines();
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [SearchingForPlayer]");
-                        StartSearch(transform.position);
                         agent.speed = defaultSpeed;
                         SetWalkingAnimationServerRpc(agent.speed);
+                        StartSearch(transform.position);
                         previousState = State.SearchingForPlayer;
                     }
                     //FoundClosestPlayerInRangeServerRpc();
@@ -158,7 +160,7 @@ namespace JPOGTrex {
                     {
                         LogIfDebugBuild($"JPOGTrex: Start Target Player. Suspicion level = [{suspicionLevel}]");
                         StopSearch(currentSearch);
-                        SwitchToBehaviourClientRpc((int)State.SpottedPlayer);
+                        SwitchToBehaviourStateServerRpc((int)State.SpottedPlayer);
                         break;
                     }
                     if (timeSinceSeeingPlayerMove >= DecreaseSuspicionTimer + 2f)
@@ -179,13 +181,13 @@ namespace JPOGTrex {
                         StartCoroutine(FoundPlayer());
                         TrexStartsChasingPlayerEffect(targetPlayer);
                         isSniffingStarted = true;
+                        previousState = State.SpottedPlayer;
 
                     }
                     if (sniffing == false)
                     {
-                        SwitchToBehaviourClientRpc((int)State.Roaring);
-                        previousState = State.SpottedPlayer;
                         isSniffingStarted = false;
+                        SwitchToBehaviourStateServerRpc((int)State.Roaring);
                     }
                     break;
 
@@ -196,6 +198,7 @@ namespace JPOGTrex {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [Roaring]");
                         agent.speed = 0f;
                         SetWalkingAnimationServerRpc(agent.speed);
+                        previousState = State.Roaring;
                     } 
                     int chaseAnimationNmbr = enemyRandom.Next(1,4);
                     if (previousState != State.Roaring && !isRoaringStarted)
@@ -207,9 +210,8 @@ namespace JPOGTrex {
                     }
                     if (roaring == false)
                     {
-                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
-                        previousState = State.Roaring;
                         isRoaringStarted = false;
+                        SwitchToBehaviourStateServerRpc((int)State.ChasingPlayer);
                     }
                     break;
 
@@ -246,7 +248,7 @@ namespace JPOGTrex {
                             LogIfDebugBuild("JPOGTrex: No players found. Return to searching for player.");
                             suspicionLevel = 60;
                             StartSearch(transform.position);
-                            SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
+                            SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
                             return;
                         }
                     }
@@ -255,7 +257,7 @@ namespace JPOGTrex {
                         LogIfDebugBuild("JPOGTrex: No players found in range. Return to searching for player.");
                         suspicionLevel= 60;
                         StartSearch(transform.position);
-                        SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
+                        SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
                     }
                     if(targetPlayer != null)
                     {
@@ -287,20 +289,20 @@ namespace JPOGTrex {
                     {
                         LogIfDebugBuild("JPOGTrex: Hit did not connect, returning to chasingPlayer");
                         StopCoroutine(BeginGrab());
-                        SwitchToBehaviourClientRpc((int)State.ChasingPlayer);
+                        SwitchToBehaviourStateServerRpc((int)State.ChasingPlayer);
                         break;
                     }
                     if (hitConnect)
                     {
                         LogIfDebugBuild("JPOGTrex: Hit connect, Switching to GrabbingPlayer");
-                        SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
+                        SwitchToBehaviourStateServerRpc((int)State.GrabbingPlayer);
                     }
                     break;
 
                 case (int)State.GrabbedPlayer:
                     DoAnimationClientRpc("grabbedPlayer");
                     previousState = State.GrabbedPlayer;
-                    SwitchToBehaviourClientRpc((int)State.GrabbingPlayer);
+                    SwitchToBehaviourStateServerRpc((int)State.GrabbingPlayer);
                     break;
 
                 case (int)State.GrabbingPlayer:
@@ -316,16 +318,15 @@ namespace JPOGTrex {
                     if(!shakingBoddies && isHungry)
                     {
                         LogIfDebugBuild($"JPOGTrex: shakingBoddies = [{shakingBoddies}] || isHungry =[{isHungry}] || Switching to eat body");
-                        SwitchToBehaviourClientRpc((int)State.EatingPlayer);
+                        SwitchToBehaviourStateServerRpc((int)State.EatingPlayer);
                     }
                     else if(!shakingBoddies && !isHungry)
                     {
                         LogIfDebugBuild($"JPOGTrex: shakingBoddies = [{shakingBoddies}] || isHungry =[{isHungry}] || dropping body");
                         DropcarriedBodyServerRpc();
-                        SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
+                        SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
                     }
-                    break;
-                   
+                    break;                   
 
                 case (int)State.EatingPlayer:
                     if (previousState != State.EatingPlayer)
@@ -343,8 +344,9 @@ namespace JPOGTrex {
                     if (doneEating)
                     {
                         LogIfDebugBuild($"JPOGTrex: doneEating = [{doneEating}] || returning to SearchingForPlayer");
-                        doneEating = false;
-                        SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
+                        doneEating = false; 
+                        suspicionLevel = 20;
+                        SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
                     }
                     break;
 
@@ -370,7 +372,7 @@ namespace JPOGTrex {
                         agent.speed = 0f;
                         DoAnimationClientRpc("eatingIdle01");
                         previousState = State.Idle;
-                        SwitchToBehaviourClientRpc((int)State.Eating);
+                        SwitchToBehaviourStateServerRpc((int)State.Eating);
                         break;
                     }
                     break;
@@ -378,13 +380,13 @@ namespace JPOGTrex {
                 case (int)State.Eating:
                     DoAnimationClientRpc("eatingIdle02");
                     previousState = State.Idle;
-                    SwitchToBehaviourClientRpc((int)State.Eating);
+                    SwitchToBehaviourStateServerRpc((int)State.Eating);
                     break;
 
                 default:
                     LogIfDebugBuild("This Behavior State doesn't exist!");
                     isRoaringStarted = false;
-                    SwitchToBehaviourClientRpc((int)State.SearchingForPlayer);
+                    SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
                     break;
             }
         }
@@ -392,15 +394,23 @@ namespace JPOGTrex {
         //Network Stuff
         private void PlayAudioClip(AudioClip audioClip)
         {
+            LogIfDebugBuild("JPOGTrex: Playing audio clip through CreatureVoice");
             creatureVoice.PlayOneShot(audioClip);
         }
         private void PlayFootStepAudioClip(AudioClip audioClip)
         {
+            LogIfDebugBuild("JPOGTrex: Playing audio clip through CreatureSFX");
             creatureSFX.PlayOneShot(audioClip);
         }
         private void PlayTrexRoarAudioClipt(AudioClip audioClip)
         {
+            LogIfDebugBuild("JPOGTrex: Playing audio clip through TrexRoarSFX");
             trexRoarSFX.PlayOneShot(audioClip, 2f);
+        }
+        [ServerRpc(RequireOwnership = false)]
+        private void SwitchToBehaviourStateServerRpc(int state)
+        {
+            SwitchToBehaviourClientRpc(state);
         }
 
         [ServerRpc(RequireOwnership = false)]
@@ -779,7 +789,7 @@ namespace JPOGTrex {
                 if(distanceToPlayer <= attackRange)
                 {
                     LogIfDebugBuild($"JPOGTrex: Grab attack can hit player [{targetPlayer.playerClientId}]!");
-                    SwitchToBehaviourClientRpc((int)State.GrabPlayer);
+                    SwitchToBehaviourStateServerRpc((int)State.GrabPlayer);
                 }
                 else
                 {
@@ -982,29 +992,43 @@ namespace JPOGTrex {
         //This should make it more configurable
         private void SetWalkingAnimation(float currentSpeed)
         {
+           if(currentSpeed == previousSpeed)
+            {
+                return;
+            }
             if (currentSpeed == 0f)
             {
+                LogIfDebugBuild($"JPOGTrex: Speed = [{currentSpeed}] || animation = [stop walking]");
                 DoAnimationClientRpc("stopWalk");
+                previousSpeed = currentSpeed;
                 return;
             }
             else if (currentSpeed > 1f && currentSpeed <= 4f)
             {
+                LogIfDebugBuild($"JPOGTrex: Speed = [{currentSpeed}] || animation = [walking]");
                 DoAnimationClientRpc("startWalk");
+                previousSpeed = currentSpeed;
                 return;
             }
             else if (currentSpeed > 4f && currentSpeed <= 6f)
             {
+                LogIfDebugBuild($"JPOGTrex: Speed = [{currentSpeed}] || animation = [running]");
                 DoAnimationClientRpc("chasingRun");
+                previousSpeed = currentSpeed;
                 return;
             }
             else if (currentSpeed > 0f && currentSpeed <= 1f)
             {
+                LogIfDebugBuild($"JPOGTrex: Speed = [{currentSpeed}] || animation = [walking-slow]");
                 DoAnimationClientRpc("slowDown");
+                previousSpeed = currentSpeed;
                 return;
             }
             else if (currentSpeed > 6f)
             {
+                LogIfDebugBuild($"JPOGTrex: Speed = [{currentSpeed}] || animation = [running-fast]");
                 DoAnimationClientRpc("speedUp");
+                previousSpeed = currentSpeed;
                 return;
             }
         }
