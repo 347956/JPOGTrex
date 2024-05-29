@@ -62,7 +62,7 @@ namespace JPOGTrex {
         private float increasRateSuspicion = 10f;
         private float decreaseRateSuspicion = 5f;
         private float timeSinceSeeingPlayerMove;
-        private float DecreaseSuspicionTimer;
+        private float DecreaseSuspicionTimer = 0f;
         private float previousSpeed;
         private Vector3 lastKnownPositionTargetPlayer;
         private bool isMovingTowardsLastKnownPosition;
@@ -229,6 +229,13 @@ namespace JPOGTrex {
                     }
                     //Check if the player is targetable (not in ship or facility)
                     CheckIfPlayerIsTargetableServerRpc();
+                    
+                    //TODO: Check if the player can be reached.
+                    //This works but not completely, if a player jumps the T-rex instantly stop chasing the player as the position mid air can not be reached.
+                    /*                    LogIfDebugBuild($"JPOGTrex: Path = [{path1.status}]");
+                                        CheckIfPlayerIsReachableServerRpc();*/
+
+
                     //Check if the target player is still visible and in chasing range
                     //If no longer visible, the target player is set to null
                     //CheckLineOfSightDuringChaseServerRpc();
@@ -494,6 +501,34 @@ namespace JPOGTrex {
         }
 
         [ServerRpc(RequireOwnership = false)]
+        private void CheckIfPlayerIsReachableServerRpc()
+        {
+            CheckIfPlayerIsReachableClientRpc();
+        }
+
+        [ClientRpc]
+        private void CheckIfPlayerIsReachableClientRpc()
+        {
+            CheckIfPlayerIsReachable();
+        }
+
+        private void CheckIfPlayerIsReachable() { 
+
+            if (targetPlayer != null)
+            {
+                if (!agent.CalculatePath(targetPlayer.transform.position, path1))
+                {
+                    LogIfDebugBuild($"JPOGTrex: The position of Player [{targetPlayer.playerClientId}] is not reachable");
+                    LogIfDebugBuild($"JPOGTrex: Path = [{path1.status}]");
+                    targetPlayer = null;
+                    suspicionLevel = 60;
+                    SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
+                    return;
+                }
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
         private void FoundClosestPlayerInRangeServerRpc()
         {
             FoundClosestPlayerInRangeClientRpc();
@@ -744,6 +779,8 @@ namespace JPOGTrex {
         private void IncreaseSuspicion()
         {
             suspicionLevel = Mathf.Clamp(suspicionLevel + increasRateSuspicion, 0, maxSuspicionLevel);
+            decreaseRateSuspicion = 0;
+            timeSinceSeeingPlayerMove = 0;
             LogIfDebugBuild($"JPOGTrex: Suspicion level increased. New value = [{suspicionLevel}]");
         }
         private void DecreaseSuspicion()
@@ -768,7 +805,6 @@ namespace JPOGTrex {
                         if (CheckIfPlayerIsmoving(playerControllerB))
                         {
                             IncreaseSuspicionServerRpc();
-                            timeSinceSeeingPlayerMove = 0;
                             LogIfDebugBuild($"JPGOTrex: Saw player [{playerControllerB.playerClientId}] moving");
                             movingPlayer = playerControllerB;
                             break;
