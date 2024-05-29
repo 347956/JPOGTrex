@@ -61,8 +61,10 @@ namespace JPOGTrex {
         private float maxSuspicionLevel = 100f;
         private float increasRateSuspicion = 10f;
         private float decreaseRateSuspicion = 5f;
-        private float timeSinceSeeingPlayerMove;
-        private float DecreaseSuspicionTimer = 0f;
+        private float timeSinceSeeingPlayerMove = 0.0f;
+        private float decreaseSuspicionTimer = 0.0f;
+        private float timeSinceLostPlayer = 0.0f;
+        private float maxSearchtime = 20.0f;
         private float previousSpeed;
         private Vector3 lastKnownPositionTargetPlayer;
         private bool isMovingTowardsLastKnownPosition;
@@ -118,6 +120,11 @@ namespace JPOGTrex {
                 }
                 return;
             }
+            if(isMovingTowardsLastKnownPosition == true)
+            {
+                timeSinceLostPlayer += Time.deltaTime;
+                LogIfDebugBuild($"JPOGTrex: time since losing the player = [{timeSinceLostPlayer}]");
+            }
             timeSinceHittingLocalPlayer += Time.deltaTime;
             timeSinceSeeingPlayerMove += Time.deltaTime;
             timeSinceNewRandPos += Time.deltaTime;
@@ -166,7 +173,7 @@ namespace JPOGTrex {
                         SwitchToBehaviourStateServerRpc((int)State.SpottedPlayer);
                         break;
                     }
-                    if (timeSinceSeeingPlayerMove >= DecreaseSuspicionTimer + 2f)
+                    if (timeSinceSeeingPlayerMove >= decreaseSuspicionTimer + 2f)
                     {
                         DecreaseSuspicionServerRpc();
                         decreaseRateSuspicion = timeSinceSeeingPlayerMove;
@@ -250,6 +257,14 @@ namespace JPOGTrex {
                         LogIfDebugBuild($"JPOGTrex: Moving to last know positon of the targetPlayer");
                         SetDestinationToPosition(lastKnownPositionTargetPlayer);
                         return;
+                    }
+                    if(timeSinceLostPlayer >= maxSearchtime)
+                    {
+                        LogIfDebugBuild("JPOGTrex: Spent to long trying to reach last know position. returning to searching for player");
+                        isMovingTowardsLastKnownPosition = false;
+                        suspicionLevel = 60;
+                        timeSinceLostPlayer = 0.0f;
+                        SwitchToBehaviourServerRpc((int)State.SearchingForPlayer);
                     }
                     if (isMovingTowardsLastKnownPosition && Vector3.Distance(transform.position, lastKnownPositionTargetPlayer) < 10f)
                     {
