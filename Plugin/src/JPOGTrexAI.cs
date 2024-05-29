@@ -156,9 +156,12 @@ namespace JPOGTrex {
                     //FoundClosestPlayerInRangeServerRpc();
                     CheckLineOfSightServerRpc();
                     LogIfDebugBuild($"JPOGTrex: seconds since a player was moving = [{timeSinceSeeingPlayerMove}]");
-                    if (targetPlayer != null && suspicionLevel == 100f)
+                    if (movingPlayer != null && suspicionLevel == 100f)
                     {
-                        LogIfDebugBuild($"JPOGTrex: Start Target Player. Suspicion level = [{suspicionLevel}]");
+                        LogIfDebugBuild($"JPOGTrex: Last moving player [{movingPlayer.playerClientId}] will be set as the player to target. Suspicion level = [{suspicionLevel}]");
+                        targetPlayer = movingPlayer;
+                        LogIfDebugBuild($"JPOGTrex: Set player [{targetPlayer.playerClientId}] as the target player!");
+                        movingPlayer = null;
                         StopSearch(currentSearch);
                         SwitchToBehaviourStateServerRpc((int)State.SpottedPlayer);
                         break;
@@ -224,6 +227,8 @@ namespace JPOGTrex {
                         previousState = State.ChasingPlayer;
                         SetWalkingAnimationServerRpc(agent.speed);
                     }
+                    //Check if the player is targetable (not in ship or facility)
+                    CheckIfPlayerIsTargetableServerRpc();
                     //Check if the target player is still visible and in chasing range
                     //If no longer visible, the target player is set to null
                     //CheckLineOfSightDuringChaseServerRpc();
@@ -256,7 +261,6 @@ namespace JPOGTrex {
                     {
                         LogIfDebugBuild("JPOGTrex: No players found in range. Return to searching for player.");
                         suspicionLevel= 60;
-                        StartSearch(transform.position);
                         SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
                     }
                     if(targetPlayer != null)
@@ -460,6 +464,33 @@ namespace JPOGTrex {
         private void CheckLineOfSightClientRpc()
         {
             CheckLineOfSight();
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void CheckIfPlayerIsTargetableServerRpc()
+        {
+            CheckIfPlayerIsTargetableClientRpc();
+        }
+
+        [ClientRpc]
+        private void CheckIfPlayerIsTargetableClientRpc()
+        {
+            CheckIfPlayerIsTargetable();
+        }
+
+        private void CheckIfPlayerIsTargetable()
+        {
+            if (targetPlayer != null)
+            {
+                if (!PlayerIsTargetable(targetPlayer, false))
+                {
+                    LogIfDebugBuild($"JPOGTrex: Player [{targetPlayer.playerClientId}] is no longer targetable");
+                    targetPlayer = null;
+                    suspicionLevel = 60;
+                    SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
+                    return;
+                }
+            }
         }
 
         [ServerRpc(RequireOwnership = false)]
@@ -739,7 +770,7 @@ namespace JPOGTrex {
                             IncreaseSuspicionServerRpc();
                             timeSinceSeeingPlayerMove = 0;
                             LogIfDebugBuild($"JPGOTrex: Saw player [{playerControllerB.playerClientId}] moving");
-                            targetPlayer = playerControllerB;
+                            movingPlayer = playerControllerB;
                             break;
                         }                        
                     }
@@ -750,8 +781,6 @@ namespace JPOGTrex {
         //Check wether this will need an Rpc or not
         private bool CheckIfPlayerIsmoving(PlayerControllerB playerToCheck)
         {
-            //Always reset the moving player, so if none of the checks pass, the previous player that was moving is not passed again
-            movingPlayer = null;
             LogIfDebugBuild($"JPOGTrex: Checking if player {playerToCheck.playerClientId} is moving");
             localPlayerTurnDistance += StartOfRound.Instance.playerLookMagnitudeThisFrame;
             if (localPlayerTurnDistance > 0.1f && Vector3.Distance(playerToCheck.transform.position, base.transform.position) < 10f)
