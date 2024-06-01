@@ -29,7 +29,6 @@ JPOGTrex is a fully animated custom enemy that can spawn outside and will target
 ## Preview 👀
 ![Alt text](./preview.jpg?raw=true "JPOGTrex on Experimentation")
 
-
 ## future 🎯
 In the future I would like to make add more behaviours to the T-rex, and make it feel more like a "neutral" enemy that attacks both players and entities.
 
@@ -44,8 +43,10 @@ In the future I would like to make add more behaviours to the T-rex, and make it
 - Add more configurable properties to the T-rex (speed, vision range, hunger level, etc.)
 
 ## Source 🌐
-The source code for the T-rex can be found on my [GitHub](https://github.com/347956/JPOGTrex). If you are making your own enemy for Lethal Company, feel free to take a look at the code and get some inspiration.
+The source code for the T-rex can be found on my [GitHub](https://github.com/347956/JPOGTrex). If you are making your own enemy mod for Lethal Company, feel free to take a look at my code for inspiration.
 
 ## JPOGT-rex assets 📦
-All assets (model, textures, animations and some audio) are from the game Jurassic Park Operation Genesis.  
-I also used some audio form the T-rex from the game Primal Carnage: Extinction
+All assets (model, textures, animations and some audio) are from the game:
+[Jurassic Park Operation Genesis](https://en.wikipedia.org/wiki/Jurassic_Park:_Operation_Genesis)  
+I also used some audio form the T-rex from the game:
+[Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/)
