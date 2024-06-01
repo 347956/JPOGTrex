@@ -11,11 +11,12 @@ JPOGTrex is a fully animated custom enemy that can spawn outside and will target
 
 ### Behaviour ▶️
 - Player spotting:
-	- The Trex will spot players in it's line of sight that are moving (emotes, walking), once it's suspicion level reaches the treshhold, it will start chasing the last player seen moving.
+	- The Trex will spot players in it's line of sight that are moving (emotes, walking), once it's suspicion level reaches the treshold, it will start chasing the last player seen moving.
+	- When you get to close to the T-rex you will also be spotted.
 	- If you hear the T-rex's footsteps, you're in range to be detected and targeted.
 - Chasing:
 	- The T-rex will chase the player last seen moving.
-	- If the player gets to far from the T-rex, the T-rex pathfind to the last know position of the target player.
+	- If the player gets to far from the T-rex, the T-rex will go to the last know position of the target player.
 	- Going inside the facility or in the ship (and closing the door) will make the T-rex stop chasing you.
 - Attacking:
 	- The T-rex will grab and kill the player once it gets close enough.
@@ -39,12 +40,12 @@ In the future I would like to make add more behaviours to the T-rex, and make it
 - Make the T-rex's collision boxes better
 - Make the hit detection of the T-rex better
 - Fix the running animation for the T-rex. For some reason the T-rex's right foot has a strange animation when running.
-- Add adrenaline effext to players that are seen moving by the T-rex
+- Add adrenaline effect to players that are seen moving by the T-rex
 - Add more configurable properties to the T-rex (speed, vision range, hunger level, etc.)
 
 ## Source 🌐
 The source code for the T-rex can be found on my [GitHub](https://github.com/347956/JPOGTrex). If you are making your own enemy for Lethal Company, feel free to take a look at the code and get some inspiration.
 
 ## JPOGT-rex assets 📦
-All assets (model, textures, animations and some audio) are from the game Jurassic Park Opertion Genesis.  
+All assets (model, textures, animations and some audio) are from the game Jurassic Park Operation Genesis.  
 I also used some audio form the T-rex from the game Primal Carnage: Extinction
