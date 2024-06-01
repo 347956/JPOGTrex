@@ -1,10 +1,13 @@
 [config]
-schemaVersion = "1.0.0"
+schemaVersion = "0.0.1"
 
 [general]
 repository = "https://thunderstore.io"
 
 [package]
+namespace = "347956"
+name = "JPOGTrex"
+versionNumber = "1.0.0"
 description = "JPOGTrex for Lethal Company."
 websiteUrl = "https://github.com/347956/JPOGTrex"
 containsNsfwContent = false
