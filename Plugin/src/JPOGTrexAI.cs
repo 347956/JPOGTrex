@@ -63,11 +63,14 @@ namespace JPOGTrex {
         private float decreaseRateSuspicion = 5f;
         private float timeSinceSeeingPlayerMove = 0.0f;
         private float decreaseSuspicionTimer = 0.0f;
+        private float suspicionDecreaseTimeInterval = 2.0f;
         private float timeSinceLostPlayer = 0.0f;
         private float maxSearchtime = 20.0f;
         private float previousSpeed;
         private Vector3 lastKnownPositionTargetPlayer;
         private bool isMovingTowardsLastKnownPosition;
+        private bool foundPlayerInCloseProx = false;
+
         ThreatType IVisibleThreat.type => ThreatType.ForestGiant;
 
         public int GetThreatLevel(Vector3 seenByPosition)
@@ -204,6 +207,15 @@ namespace JPOGTrex {
                         StartSearch(transform.position);
                         previousState = State.SearchingForPlayer;
                     }
+                    FoundClosestPlayerInRangeServerRpc();
+                    if (foundPlayerInCloseProx)
+                    {
+                        LogIfDebugBuild("JPOGTrex: Beginning chase for player in close proximity");
+                        StopSearch(currentSearch);
+                        foundPlayerInCloseProx = false;
+                        SwitchToBehaviourStateServerRpc((int)State.SpottedPlayer);
+                        break;
+                    }
                     //FoundClosestPlayerInRangeServerRpc();
                     CheckLineOfSightServerRpc();
                     LogIfDebugBuild($"JPOGTrex: seconds since a player was moving = [{timeSinceSeeingPlayerMove}]");
@@ -217,11 +229,7 @@ namespace JPOGTrex {
                         SwitchToBehaviourStateServerRpc((int)State.SpottedPlayer);
                         break;
                     }
-                    if (timeSinceSeeingPlayerMove >= decreaseSuspicionTimer + 2f)
-                    {
-                        DecreaseSuspicionServerRpc();
-                        decreaseRateSuspicion = timeSinceSeeingPlayerMove;
-                    }
+                    CheckAndDecreaseSuspicionServerRpc();
                     break;
 
                 case (int)State.SpottedPlayer:
@@ -233,7 +241,7 @@ namespace JPOGTrex {
                         LogIfDebugBuild("JPOGTrex: Spotted Player!");
                         SetWalkingAnimationServerRpc(agent.speed);
                         StartCoroutine(FoundPlayer());
-                        TrexStartsChasingPlayerEffect(targetPlayer);
+                        //TrexStartsChasingPlayerEffect(targetPlayer);
                         isSniffingStarted = true;
                         previousState = State.SpottedPlayer;
 
@@ -713,7 +721,26 @@ namespace JPOGTrex {
             DropCarriedBody();
         }
 
+        [ServerRpc(RequireOwnership = false)]
+        private void CheckAndDecreaseSuspicionServerRpc()
+        {
+            CheckAndDecreaseSuspicionClientRpc();
+        }
 
+        [ClientRpc]
+        private void CheckAndDecreaseSuspicionClientRpc()
+        {
+            CheckAndDecreaseSuspicion();
+        }
+
+        private void CheckAndDecreaseSuspicion()
+        {
+            if (timeSinceSeeingPlayerMove >= decreaseSuspicionTimer + suspicionDecreaseTimeInterval)
+            {
+                DecreaseSuspicionServerRpc();
+                decreaseRateSuspicion = timeSinceSeeingPlayerMove;
+            }
+        }
 
         //Methods & Logic
 
@@ -737,7 +764,7 @@ namespace JPOGTrex {
             return true;
         }
 
-        private bool FoundClosestPlayerInRange(float range = 20f, float senseRange = 5f)
+        private bool FoundClosestPlayerInRange(float range = 15f, float senseRange = 5f)
         {
             TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: true, 60f);
             if (targetPlayer == null)
@@ -746,12 +773,17 @@ namespace JPOGTrex {
                 TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: false);
                 range = senseRange;
             }
-            if (targetPlayer != null && Vector3.Distance(transform.position, targetPlayer.transform.position) < range)
+            if (targetPlayer != null && Vector3.Distance(transform.position, targetPlayer.transform.position) < range && !targetPlayer.isInHangarShipRoom)
             {
                 LogIfDebugBuild("JPOGTrex: Spotted player in close proximity");
+                foundPlayerInCloseProx = true;  
                 return true;
             }
-            return false;
+            else
+            {
+                targetPlayer = null;
+                return false;
+            }
         }
 
 
@@ -1106,6 +1138,8 @@ namespace JPOGTrex {
 
         public override void KillEnemy(bool destroy = false)
         {
+            LogIfDebugBuild("JPOGTrex: T-rex has been killed");
+            SetWalkingAnimationServerRpc(0f);
             DoAnimationClientRpc("killEnemy");
             creatureVoice.Stop();
             creatureSFX.Stop();
