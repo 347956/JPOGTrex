@@ -27,7 +27,7 @@ JPOGTrex is a fully animated custom enemy that can spawn outside and will target
 	- The T-rex can be killed by Earth Leviathan.
 
 ## Preview 👀
-![Alt text](./preview.jpg?raw=true "JPOGTrex on Experimentation")
+![Alt text](https://i.imgur.com/mw49lHV.jpeg)
 
 ## future 🎯
 In the future I would like to make add more behaviours to the T-rex, and make it feel more like a "neutral" enemy that attacks both players and entities.
