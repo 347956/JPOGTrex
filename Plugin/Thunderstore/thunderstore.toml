@@ -5,9 +5,6 @@ schemaVersion = "0.0.1"
 repository = "https://thunderstore.io"
 
 [package]
-namespace = "347956"
-name = "JPOGTrex"
-versionNumber = "1.0.0"
 description = "JPOGTrex for Lethal Company."
 websiteUrl = "https://github.com/347956/JPOGTrex"
 containsNsfwContent = false
@@ -21,12 +18,12 @@ readme = "./README.md"
 outdir = "./Packages"
 
 [[build.copy]]
-source = "../bin/Release/netstandard2.1/347956.JPOGTrex.dll"
-target = "plugins/JPOGTrex/"
+source = "../bin/Release/netstandard2.1/JPOGTrex.dll"
+target = "/plugins/JPOGTrex/"
 
 [[build.copy]]
 source = "../../UnityProject/AssetBundles/StandaloneWindows/jpogtrexassets"
-target = "plugins/JPOGTrex/"
+target = "/plugins/JPOGTrex/"
 
 [[build.copy]]
 source = "./CHANGELOG.md"
