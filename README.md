@@ -9,7 +9,7 @@ A video Tutorial can be found [here](https://www.youtube.com/watch?v=NZ_F8wDczzM
 
 > [!NOTE]  
 > I do not own any of the Assets nor made them myself. The models, animations and some of the audio clips were made by: [Blue Tongue Entertainment](https://en.wikipedia.org/wiki/Blue_Tongue_Entertainment), which was closed down in 2011.  
-> I also got some sounds for the T-rex from the game [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/).
+> I also got some sounds for the T-rex from the game: [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/).
 
 ## Dependencies ✅
 

@@ -83,7 +83,7 @@ MonoBehaviour:
   canSeeThroughFog: 0
   pushPlayerForce: 2
   pushPlayerDistance: 3
-  SizeLimit: 0
+  SizeLimit: 1
   timeToPlayAudio: 0
   loudnessMultiplier: 0
   overrideVentSFX: {fileID: 0}
