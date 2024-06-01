@@ -18,7 +18,7 @@ namespace JPOGTrex {
     // Asset bundles cannot contain scripts, so our script lives here. It is important to get the
     // reference right, or else it will not find this file. See the guide for more information.
 
-    class JPOGTrexAI : EnemyAI
+    class JPOGTrexAI : EnemyAI, IVisibleThreat
     {
         // We set these in our Asset Bundle, so we can disable warning CS0649:
         // Field 'field' is never assigned to, and will always have its default value 'value'
@@ -63,11 +63,62 @@ namespace JPOGTrex {
         private float decreaseRateSuspicion = 5f;
         private float timeSinceSeeingPlayerMove = 0.0f;
         private float decreaseSuspicionTimer = 0.0f;
+        private float suspicionDecreaseTimeInterval = 2.0f;
         private float timeSinceLostPlayer = 0.0f;
         private float maxSearchtime = 20.0f;
         private float previousSpeed;
         private Vector3 lastKnownPositionTargetPlayer;
         private bool isMovingTowardsLastKnownPosition;
+        private bool foundPlayerInCloseProx = false;
+
+        ThreatType IVisibleThreat.type => ThreatType.ForestGiant;
+
+        public int GetThreatLevel(Vector3 seenByPosition)
+        {
+            return 18;
+        }
+
+        public int GetInterestLevel()
+        {
+            return 0;
+        }
+
+        public Transform GetThreatLookTransform()
+        {
+            return eye;
+        }
+
+        public Transform GetThreatTransform()
+        {
+            return base.transform;
+        }
+
+        public Vector3 GetThreatVelocity()
+        {
+            if (base.IsOwner)
+            {
+                return agent.velocity;
+            }
+            return Vector3.zero;
+        }
+
+        public float GetVisibility()
+        {
+            if(isEnemyDead)
+            {
+                return 0f;
+            }
+            if(agent.velocity.sqrMagnitude > 0f)
+            {
+                return 1f;
+            }
+            return 0.75f;
+        }
+
+        public int SendSpecialBehaviour(int id)
+        {
+            return 0;
+        }
 
         enum State
         {
@@ -100,11 +151,7 @@ namespace JPOGTrex {
             positionRandomness = new Vector3(0, 0, 0);
             enemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
             isDeadAnimationDone = false;
-            // NOTE: Add your behavior states in your enemy script in Unity, where you can configure fun stuff
-            // like a voice clip or an sfx clip to play when changing to that specific behavior state.
             SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
-            // We make the enemy start searching. This will make it start wandering around.
-            //StartSearch(transform.position);            
         }
 
         public override void Update() {
@@ -160,6 +207,15 @@ namespace JPOGTrex {
                         StartSearch(transform.position);
                         previousState = State.SearchingForPlayer;
                     }
+                    FoundClosestPlayerInRangeServerRpc();
+                    if (foundPlayerInCloseProx)
+                    {
+                        LogIfDebugBuild("JPOGTrex: Beginning chase for player in close proximity");
+                        StopSearch(currentSearch);
+                        foundPlayerInCloseProx = false;
+                        SwitchToBehaviourStateServerRpc((int)State.SpottedPlayer);
+                        break;
+                    }
                     //FoundClosestPlayerInRangeServerRpc();
                     CheckLineOfSightServerRpc();
                     LogIfDebugBuild($"JPOGTrex: seconds since a player was moving = [{timeSinceSeeingPlayerMove}]");
@@ -173,11 +229,7 @@ namespace JPOGTrex {
                         SwitchToBehaviourStateServerRpc((int)State.SpottedPlayer);
                         break;
                     }
-                    if (timeSinceSeeingPlayerMove >= decreaseSuspicionTimer + 2f)
-                    {
-                        DecreaseSuspicionServerRpc();
-                        decreaseRateSuspicion = timeSinceSeeingPlayerMove;
-                    }
+                    CheckAndDecreaseSuspicionServerRpc();
                     break;
 
                 case (int)State.SpottedPlayer:
@@ -189,7 +241,7 @@ namespace JPOGTrex {
                         LogIfDebugBuild("JPOGTrex: Spotted Player!");
                         SetWalkingAnimationServerRpc(agent.speed);
                         StartCoroutine(FoundPlayer());
-                        TrexStartsChasingPlayerEffect(targetPlayer);
+                        //TrexStartsChasingPlayerEffect(targetPlayer);
                         isSniffingStarted = true;
                         previousState = State.SpottedPlayer;
 
@@ -418,21 +470,6 @@ namespace JPOGTrex {
         }
 
         //Network Stuff
-        private void PlayAudioClip(AudioClip audioClip)
-        {
-            LogIfDebugBuild("JPOGTrex: Playing audio clip through CreatureVoice");
-            creatureVoice.PlayOneShot(audioClip);
-        }
-        private void PlayFootStepAudioClip(AudioClip audioClip)
-        {
-            LogIfDebugBuild("JPOGTrex: Playing audio clip through CreatureSFX");
-            creatureSFX.PlayOneShot(audioClip);
-        }
-        private void PlayTrexRoarAudioClipt(AudioClip audioClip)
-        {
-            LogIfDebugBuild("JPOGTrex: Playing audio clip through TrexRoarSFX");
-            trexRoarSFX.PlayOneShot(audioClip, 2f);
-        }
         [ServerRpc(RequireOwnership = false)]
         private void SwitchToBehaviourStateServerRpc(int state)
         {
@@ -500,21 +537,6 @@ namespace JPOGTrex {
             CheckIfPlayerIsTargetable();
         }
 
-        private void CheckIfPlayerIsTargetable()
-        {
-            if (targetPlayer != null)
-            {
-                if (!PlayerIsTargetable(targetPlayer, false))
-                {
-                    LogIfDebugBuild($"JPOGTrex: Player [{targetPlayer.playerClientId}] is no longer targetable");
-                    targetPlayer = null;
-                    suspicionLevel = 60;
-                    SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
-                    return;
-                }
-            }
-        }
-
         [ServerRpc(RequireOwnership = false)]
         private void CheckIfPlayerIsReachableServerRpc()
         {
@@ -525,22 +547,6 @@ namespace JPOGTrex {
         private void CheckIfPlayerIsReachableClientRpc()
         {
             CheckIfPlayerIsReachable();
-        }
-
-        private void CheckIfPlayerIsReachable() { 
-
-            if (targetPlayer != null)
-            {
-                if (!agent.CalculatePath(targetPlayer.transform.position, path1))
-                {
-                    LogIfDebugBuild($"JPOGTrex: The position of Player [{targetPlayer.playerClientId}] is not reachable");
-                    LogIfDebugBuild($"JPOGTrex: Path = [{path1.status}]");
-                    targetPlayer = null;
-                    suspicionLevel = 60;
-                    SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
-                    return;
-                }
-            }
         }
 
         [ServerRpc(RequireOwnership = false)]
@@ -715,7 +721,26 @@ namespace JPOGTrex {
             DropCarriedBody();
         }
 
+        [ServerRpc(RequireOwnership = false)]
+        private void CheckAndDecreaseSuspicionServerRpc()
+        {
+            CheckAndDecreaseSuspicionClientRpc();
+        }
 
+        [ClientRpc]
+        private void CheckAndDecreaseSuspicionClientRpc()
+        {
+            CheckAndDecreaseSuspicion();
+        }
+
+        private void CheckAndDecreaseSuspicion()
+        {
+            if (timeSinceSeeingPlayerMove >= decreaseSuspicionTimer + suspicionDecreaseTimeInterval)
+            {
+                DecreaseSuspicionServerRpc();
+                decreaseRateSuspicion = timeSinceSeeingPlayerMove;
+            }
+        }
 
         //Methods & Logic
 
@@ -739,7 +764,7 @@ namespace JPOGTrex {
             return true;
         }
 
-        private bool FoundClosestPlayerInRange(float range = 20f, float senseRange = 5f)
+        private bool FoundClosestPlayerInRange(float range = 15f, float senseRange = 5f)
         {
             TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: true, 60f);
             if (targetPlayer == null)
@@ -748,12 +773,17 @@ namespace JPOGTrex {
                 TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: false);
                 range = senseRange;
             }
-            if (targetPlayer != null && Vector3.Distance(transform.position, targetPlayer.transform.position) < range)
+            if (targetPlayer != null && Vector3.Distance(transform.position, targetPlayer.transform.position) < range && !targetPlayer.isInHangarShipRoom)
             {
                 LogIfDebugBuild("JPOGTrex: Spotted player in close proximity");
+                foundPlayerInCloseProx = true;  
                 return true;
             }
-            return false;
+            else
+            {
+                targetPlayer = null;
+                return false;
+            }
         }
 
 
@@ -822,6 +852,9 @@ namespace JPOGTrex {
                             IncreaseSuspicionServerRpc();
                             LogIfDebugBuild($"JPGOTrex: Saw player [{playerControllerB.playerClientId}] moving");
                             movingPlayer = playerControllerB;
+
+                            //TODO add adrinaline effect to players that are seen moving
+                            //TrexSeePlayerEffect();
                             break;
                         }                        
                     }
@@ -879,6 +912,40 @@ namespace JPOGTrex {
             else
             {
                 LogIfDebugBuild("JPOGTrex: No target player assigned!");
+            }
+        }
+        //Check is if the target is valid or not
+        private void CheckIfPlayerIsTargetable()
+        {
+            if (targetPlayer != null)
+            {
+                if (!PlayerIsTargetable(targetPlayer, false))
+                {
+                    LogIfDebugBuild($"JPOGTrex: Player [{targetPlayer.playerClientId}] is no longer targetable");
+                    targetPlayer = null;
+                    suspicionLevel = 60;
+                    SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
+                    return;
+                }
+            }
+        }
+
+        //Checks if the player's position can be reached.
+        //Needs work
+        private void CheckIfPlayerIsReachable()
+        {
+
+            if (targetPlayer != null)
+            {
+                if (!agent.CalculatePath(targetPlayer.transform.position, path1))
+                {
+                    LogIfDebugBuild($"JPOGTrex: The position of Player [{targetPlayer.playerClientId}] is not reachable");
+                    LogIfDebugBuild($"JPOGTrex: Path = [{path1.status}]");
+                    targetPlayer = null;
+                    suspicionLevel = 60;
+                    SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
+                    return;
+                }
             }
         }
 
@@ -965,7 +1032,30 @@ namespace JPOGTrex {
                 StartCoroutine(EatPlayerCoroutine());
             }
         }
+
+
         //Effects on player
+        private void ShakeCamera()
+        {
+            PlayerControllerB playerController = GameNetworkManager.Instance.localPlayerController;
+            float distance = Vector3.Distance(transform.position, playerController.transform.position);
+            if (distance > 40f)
+            {
+                return;
+            }
+            else if (distance <= 5f)
+            {
+                HUDManager.Instance.ShakeCamera(ScreenShakeType.VeryStrong);
+            }
+            else if (distance > 5 && distance <= 20)
+            {
+                HUDManager.Instance.ShakeCamera(ScreenShakeType.Big);
+            }
+            else if (distance > 20f && distance <= 40f)
+            {
+                HUDManager.Instance.ShakeCamera(ScreenShakeType.Small);
+            }
+        }
 
         private void TrexStartsChasingPlayerEffect(PlayerControllerB playerControllerB)
         {
@@ -979,30 +1069,21 @@ namespace JPOGTrex {
                 return;
             }
         }
-        private void TrexSeePlayerEffect(PlayerControllerB playerControllerB)
+        private void TrexSeePlayerEffect()
         {
-            if(playerControllerB == null) { 
+            PlayerControllerB playerControllerB = GameNetworkManager.Instance.localPlayerController;
+            if (playerControllerB == null) { 
                 return;
             }
             if (playerControllerB.isPlayerDead || playerControllerB.isInsideFactory)
             {
                 return;
             }
-            if (playerControllerB == GameNetworkManager.Instance.localPlayerController)
+            if (playerControllerB == movingPlayer)
             {
-                playerControllerB.IncreaseFearLevelOverTime(2.0f);
+                LogIfDebugBuild($"JPOGTrex: increasing fear level of player = [{playerControllerB.playerClientId}]");
+                GameNetworkManager.Instance.localPlayerController.IncreaseFearLevelOverTime(0.2f);
                 return;
-            }
-            if (!playerControllerB.isInHangarShipRoom && CheckLineOfSightForPosition(playerControllerB.gameplayCamera.transform.position, 45f, 70) && playerControllerB != null)
-            {
-                if (Vector3.Distance(base.transform.position, playerControllerB.transform.position) < 15f)
-                {
-                    playerControllerB.JumpToFearLevel(0.7f);
-                }
-                else
-                {
-                    playerControllerB.JumpToFearLevel(0.4f);
-                }
             }
         }
 
@@ -1057,6 +1138,8 @@ namespace JPOGTrex {
 
         public override void KillEnemy(bool destroy = false)
         {
+            LogIfDebugBuild("JPOGTrex: T-rex has been killed");
+            SetWalkingAnimationServerRpc(0f);
             DoAnimationClientRpc("killEnemy");
             creatureVoice.Stop();
             creatureSFX.Stop();
@@ -1064,7 +1147,6 @@ namespace JPOGTrex {
         }
 
         //Some Utility stuff
-
 
         //Simple method that sets the walking animation of the T-rex based on it's speed.
         //This way a more slowed down walking animation or sped up running animation can be applied.
@@ -1164,6 +1246,26 @@ namespace JPOGTrex {
             }
         }
 
+        //These methods are called during certain frames in the animation
+        private void PlayAudioClip(AudioClip audioClip)
+        {
+            LogIfDebugBuild("JPOGTrex: Playing audio clip through CreatureVoice");
+            creatureVoice.PlayOneShot(audioClip);
+            WalkieTalkie.TransmitOneShotAudio(creatureVoice, audioClip);
+        }
+        private void PlayFootStepAudioClip(AudioClip audioClip)
+        {
+            LogIfDebugBuild("JPOGTrex: Playing audio clip through CreatureSFX");
+            creatureSFX.PlayOneShot(audioClip);
+            WalkieTalkie.TransmitOneShotAudio(creatureSFX, audioClip);
+            ShakeCamera();
+        }
+        private void PlayTrexRoarAudioClipt(AudioClip audioClip)
+        {
+            LogIfDebugBuild("JPOGTrex: Playing audio clip through TrexRoarSFX");
+            trexRoarSFX.PlayOneShot(audioClip, 2f);
+            WalkieTalkie.TransmitOneShotAudio(trexRoarSFX, audioClip);
+        }
 
 
         //Coroutines
