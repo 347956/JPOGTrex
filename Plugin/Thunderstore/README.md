@@ -1,7 +1,7 @@
 # JPOGTrex 🦖
 This mod adds the T-rex from the game [Jurassic Park Operation Genesis](https://en.wikipedia.org/wiki/Jurassic_Park:_Operation_Genesis).
 
->[!NOTE]  ⚠️
+> ⚠️  
 > This is the first mod I made for Lethal Company. Release (v1.0.0) has the bare minimum features I think the T-rex should have to function as an enemy.
 > The T-rex should function, but the mod is not done yet. You may experience some buggy behaviour from the T-rex. I'll try and keep the mod updated and fix bugs.
 
@@ -27,10 +27,14 @@ JPOGTrex is a fully animated custom enemy that can spawn outside and will target
 	- The T-rex can be killed by Earth Leviathan.
 
 ## Preview 👀
-![Alt text](https://i.imgur.com/mw49lHV.jpeg)
+![JPOGTrex on experimentation](https://i.imgur.com/mw49lHV.jpeg)
 
-## future 🎯
+## Future 🎯
 In the future I would like to make add more behaviours to the T-rex, and make it feel more like a "neutral" enemy that attacks both players and entities.
+
+### Other projects 💭
+- Create a custom moon with JPOG assets.
+- Add other JPOG dinosaurs.
 
 ### TODO 🛠️
 - Make improvements to the audio (mainly the roars)
@@ -39,6 +43,7 @@ In the future I would like to make add more behaviours to the T-rex, and make it
 - Make the T-rex's collision boxes better
 - Make the hit detection of the T-rex better
 - Fix the running animation for the T-rex. For some reason the T-rex's right foot has a strange animation when running.
+- Fix the T-rex's "MouthGrip" not being set propperly. ✅
 - Add adrenaline effect to players that are seen moving by the T-rex
 - Add more configurable properties to the T-rex (speed, vision range, hunger level, etc.)
 

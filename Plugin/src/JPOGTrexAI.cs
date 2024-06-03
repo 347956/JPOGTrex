@@ -143,7 +143,7 @@ namespace JPOGTrex {
         public override void Start() {
             base.Start();
             attackRange = 5f;
-            SetBonesServerRpc();
+            //SetBonesServerRpc();
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
             SetWalkingAnimationServerRpc(defaultSpeed);
@@ -156,7 +156,7 @@ namespace JPOGTrex {
 
         public override void Update() {
             base.Update();
-            UpdateMouthGripLocationToTargetBoneLocationClientRpc();
+            //UpdateMouthGripLocationToTargetBoneLocationClientRpc();
             if (isEnemyDead) {
                 // For some weird reason I can't get an RPC to get called from HitEnemy() (works from other methods), so we do this workaround. We just want the enemy to stop playing the song.
                 if (!isDeadAnimationDone) {
