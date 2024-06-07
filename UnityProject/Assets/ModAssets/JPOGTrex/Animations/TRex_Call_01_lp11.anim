@@ -4558,7 +4558,15 @@ AnimationClip:
   - time: 0.6
     functionName: PlayTrexRoarAudioClipt
     data: 
-    objectReferenceParameter: {fileID: 8300000, guid: 76e41232ca3d5a74e913832812b7aea2,
+    objectReferenceParameter: {fileID: 8300000, guid: dcce0155fd8e1de418d8fa69ff4b832d,
+      type: 3}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 2.7
+    functionName: PlayAudioClip
+    data: 
+    objectReferenceParameter: {fileID: 8300000, guid: 8ee054acf125fd542b144d32bbb626be,
       type: 3}
     floatParameter: 0
     intParameter: 0

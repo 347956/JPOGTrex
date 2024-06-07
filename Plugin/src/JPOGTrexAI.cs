@@ -28,6 +28,7 @@ namespace JPOGTrex {
         public Transform mouthGrip = null!;
         public Transform mouthAttackHitBox = null!;
         public AudioSource trexRoarSFX = null!;
+        public AudioSource trexSubRoarSFX = null!;
         private Transform? mouthBone = null!;
         private List<DeadBodyInfo>carryingBodies = new List<DeadBodyInfo>();
         private GameObject modelD = null!;
@@ -1264,6 +1265,12 @@ namespace JPOGTrex {
         {
             LogIfDebugBuild("JPOGTrex: Playing audio clip through TrexRoarSFX");
             trexRoarSFX.PlayOneShot(audioClip, 2f);
+            WalkieTalkie.TransmitOneShotAudio(trexRoarSFX, audioClip);
+        }
+        private void PlayTrexSubRoarAudioClipt(AudioClip audioClip)
+        {
+            LogIfDebugBuild("JPOGTrex: Playing audio clip through TrexSubRoarSFX");
+            trexSubRoarSFX.PlayOneShot(audioClip, 1f);
             WalkieTalkie.TransmitOneShotAudio(trexRoarSFX, audioClip);
         }
 

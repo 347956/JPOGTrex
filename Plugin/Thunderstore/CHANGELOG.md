@@ -1,3 +1,9 @@
+## 1.0.6
+- Changes to the roar aduio clips: 
+	- The roar is now divided into multiple clips that are played on different audio sources. This should make it so that only the "main" part of the roar audio clip is loadn and/or heard from further away.
+- Fixed the bite sound effect:
+	- The Bite audio clip should now be played correctly when the T-rex begins the grab aniamtion. 
+
 ## 1.0.5
 - Changed how the T-rex MouthGrip is set:
 	- **OLD**: The MouthGrip used to be set by being updated to match the MouthBone's location

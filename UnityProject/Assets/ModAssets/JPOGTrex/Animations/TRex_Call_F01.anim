@@ -17226,9 +17226,17 @@ AnimationClip:
   m_HasMotionFloatCurves: 0
   m_Events:
   - time: 0
+    functionName: PlayTrexSubRoarAudioClipt
+    data: 
+    objectReferenceParameter: {fileID: 8300000, guid: 456a24b4a95c4c440bd09bcad0a2a2d0,
+      type: 3}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.6666667
     functionName: PlayTrexRoarAudioClipt
     data: 
-    objectReferenceParameter: {fileID: 8300000, guid: deade18b48ae5d14ea38d95b0271c417,
+    objectReferenceParameter: {fileID: 8300000, guid: dce5972c8ab52fe4eba717935b8d7cb3,
       type: 3}
     floatParameter: 0
     intParameter: 0
