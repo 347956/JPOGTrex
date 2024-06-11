@@ -18,11 +18,11 @@ MonoBehaviour:
     Sigurd''s danger level: ?%
 
 
-    Scientific name: tyrannosaurus
-    rex
+    Scientific name: Tyrannosaurus
+    Rex
 
 
-    We clocked 40 on the t-rex - Hammond'
+    "We clocked the T-rex at 32 mph" - John Hammond'
   terminalEvent: 
   clearPreviousText: 1
   maxCharactersToType: 35
@@ -36,7 +36,7 @@ MonoBehaviour:
   returnFromStorage: 0
   itemCost: 0
   creatureFileID: 7014
-  creatureName: Trex
+  creatureName: T-rex
   storyLogFileID: -1
   overrideOptions: 0
   acceptAnything: 0

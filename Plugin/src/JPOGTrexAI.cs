@@ -168,7 +168,18 @@ namespace JPOGTrex {
                 }
                 return;
             }
-            if(isMovingTowardsLastKnownPosition == true)
+            if (enemyHP <= 0 && !isEnemyDead)
+            {
+                // Our death sound will be played through creatureVoice when KillEnemy() is called.
+                // KillEnemy() will also attempt to call creatureAnimator.SetTrigger("KillEnemy"),
+                // so we don't need to call a death animation ourselves.
+                // We need to stop our search coroutine, because the game does not do that by default.
+                StopAllCoroutines();
+                StopCoroutine(searchCoroutine);
+                KillEnemyOnOwnerClient();
+                return;
+            }
+            if (isMovingTowardsLastKnownPosition == true)
             {
                 timeSinceLostPlayer += Time.deltaTime;
                 LogIfDebugBuild($"JPOGTrex: time since losing the player = [{timeSinceLostPlayer}]");
@@ -259,7 +270,7 @@ namespace JPOGTrex {
                     if(previousState != State.SpottedPlayer && previousState != State.Roaring)
                     {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [Roaring]");
-                        agent.speed = 0f;
+                        agent.speed = 1f;
                         SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.Roaring;
                     } 
@@ -1107,23 +1118,24 @@ namespace JPOGTrex {
         public override void HitEnemy(int force = 1, PlayerControllerB? playerWhoHit = null, bool playHitSFX = false, int hitID = -1)
         {
             base.HitEnemy(force, playerWhoHit, playHitSFX, hitID);
+            //If the T-rex is dead nothing happens
             if (isEnemyDead)
             {
                 return;
             }
             enemyHP -= force;
-            if (IsOwner)
+            if (enemyHP > 0)
             {
-                if (enemyHP <= 0 && !isEnemyDead)
+                //The T-rex should not suddenly start chasing a player during "important" animations such as eating or grabbing the player 
+                if (previousBehaviourStateIndex == (int)State.EatingPlayer || previousBehaviourStateIndex == (int)State.GrabbingPlayer || previousBehaviourStateIndex == (int)State.GrabPlayer)
                 {
-                    // Our death sound will be played through creatureVoice when KillEnemy() is called.
-                    // KillEnemy() will also attempt to call creatureAnimator.SetTrigger("KillEnemy"),
-                    // so we don't need to call a death animation ourselves.
-
-                    StopCoroutine(BeginGrab());
-                    // We need to stop our search coroutine, because the game does not do that by default.
-                    StopCoroutine(searchCoroutine);
-                    KillEnemyOnOwnerClient();
+                    return;
+                }
+                targetPlayer = playerWhoHit;
+                if (previousBehaviourStateIndex != (int)State.ChasingPlayer)
+                {
+                    suspicionLevel = maxSuspicionLevel;
+                    SwitchToBehaviourServerRpc((int)State.ChasingPlayer);
                 }
             }
         }
