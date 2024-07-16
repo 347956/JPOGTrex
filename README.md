@@ -53,4 +53,4 @@ It should give some tips when encountering problems in this project or your own.
 - [nomnomab](https://github.com/nomnomab) - [Lethal Company Project Patcher](https://github.com/nomnomab/lc-project-patcher) - used for the Unity Project  
 - [AlbinoGeek](https://github.com/AlbinoGeek) - issue template  
 - [HENDRIX-ZT2 ](https://github.com/HENDRIX-ZT2) & [AdventureT](https://github.com/AdventureT) - creating the blender plugin: [jpog-blender](https://github.com/HENDRIX-ZT2/jpog-blender) that is able to read ".tmd" files from the game: [Jurassic Park: Operation Genisis](https://en.wikipedia.org/wiki/Jurassic_Park:_Operation_Genesis)
-- [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/) - I use some of the sounds from their {T-rex](https://youtu.be/VTaOiCKarqY?si=gmsnWuaOiKZl15iR)
+- [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/) - I use some of the sounds from their [T-rex](https://youtu.be/VTaOiCKarqY?si=gmsnWuaOiKZl15iR)
