@@ -5,6 +5,7 @@ using LethalLib.Modules;
 using BepInEx.Logging;
 using System.IO;
 using JPOGTrex.Configuration;
+using System.Collections.Generic;
 
 namespace JPOGTrex {
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -19,7 +20,6 @@ namespace JPOGTrex {
 
             // If you don't want your mod to use a configuration file, you can remove this line, Configuration.cs, and other references.
             BoundConfig = new PluginConfig(base.Config);
-
             // This should be ran before Network Prefabs are registered.
             InitializeNetworkBehaviours();
 
@@ -38,9 +38,12 @@ namespace JPOGTrex {
             var JPOGTrex = ModAssets.LoadAsset<EnemyType>("JPOGTrexObj");
             var JPOGTrexTN = ModAssets.LoadAsset<TerminalNode>("JPOGTrexTN");
             var JPOGTrexTK = ModAssets.LoadAsset<TerminalKeyword>("JPOGTrexTK");
+            JPOGTrex.MaxCount = BoundConfig.MaxTrexCount.Value;
 
             // Optionally, we can list which levels we want to add our enemy to, while also specifying the spawn weight for each.
             /*
+             * 
+             * 
             var JPOGTrexLevelRarities = new Dictionary<Levels.LevelTypes, int> {
                 {Levels.LevelTypes.ExperimentationLevel, 10},
                 {Levels.LevelTypes.AssuranceLevel, 40},
@@ -63,12 +66,34 @@ namespace JPOGTrex {
             // Network Prefabs need to be registered. See https://docs-multiplayer.unity3d.com/netcode/current/basics/object-spawning/
             // LethalLib registers prefabs on GameNetworkManager.Start.
             NetworkPrefabs.RegisterNetworkPrefab(JPOGTrex.enemyPrefab);
-
             // For different ways of registering your enemy, see https://github.com/EvaisaDev/LethalLib/blob/main/LethalLib/Modules/Enemies.cs
-            Enemies.RegisterEnemy(JPOGTrex, BoundConfig.SpawnWeight.Value, Levels.LevelTypes.All, JPOGTrexTN, JPOGTrexTK);
-            // For using our rarity tables, we can use the following:
-            // Enemies.RegisterEnemy(JPOGTrex, JPOGTrexLevelRarities, JPOGTrexCustomLevelRarities, JPOGTrexTN, JPOGTrexTK);
-            
+            //Sets the spawn weight per level/moond accordingly if enabled, or uses the default spawnweight for all levels.
+            if (BoundConfig.CustomSpawnweightPerLevel.Value == true)
+            {
+                var JPOGTrexLevelRarities = new Dictionary<Levels.LevelTypes, int> {
+                        {Levels.LevelTypes.ExperimentationLevel, BoundConfig.SpawnWeightExperimentation.Value},
+                        {Levels.LevelTypes.AssuranceLevel, BoundConfig.SpawnWeightAssurance.Value},
+                        {Levels.LevelTypes.VowLevel, BoundConfig.SpawnWeightVow.Value},
+                        {Levels.LevelTypes.OffenseLevel, BoundConfig.SpawnWeightMarch.Value},
+                        {Levels.LevelTypes.MarchLevel, BoundConfig.SpawnWeightOffense.Value},
+                        {Levels.LevelTypes.RendLevel, BoundConfig.SpawnWeightRend.Value},
+                        {Levels.LevelTypes.DineLevel, BoundConfig.SpawnWeightDine.Value},
+                        {Levels.LevelTypes.TitanLevel, BoundConfig.SpawnWeightTitan.Value},
+                        {Levels.LevelTypes.AdamanceLevel, BoundConfig.SpawnWeightAdamance.Value},
+                        {Levels.LevelTypes.ArtificeLevel, BoundConfig.SpawnWeightArtifice.Value},
+                        {Levels.LevelTypes.EmbrionLevel, BoundConfig.SpawnWeightEmbrion.Value},
+                        {Levels.LevelTypes.Modded, BoundConfig.SpawnWeightModded.Value}
+                    };
+                var JPOGTrexCustomLevelRarities = new Dictionary<string, int>();
+                Enemies.RegisterEnemy(JPOGTrex, JPOGTrexLevelRarities, JPOGTrexCustomLevelRarities, JPOGTrexTN, JPOGTrexTK);
+                Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID}: using custom Spawn Weight(s).");
+            }
+            else
+            {
+                Enemies.RegisterEnemy(JPOGTrex, BoundConfig.SpawnWeight.Value, Levels.LevelTypes.All, JPOGTrexTN, JPOGTrexTK);
+                Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID}: using default Spawn Weight(s).");
+            }
+
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
         }
 

@@ -1,3 +1,20 @@
+## 1.0.8
+- V55:
+	- I have tested the T-rex a bit myself and so far it works "normal" (just as before v55) and I don't think there are any changes that would break the T-rex.
+- Made the T-rex more configurable:
+	- Added Configuration for the default speed of the T-rex.
+	- Added Configuration for the max amount of T-rexes that can spawn naturally.
+	- Added Configuration options for the spawn weight of the T-rex (now selectable per moon).
+	- Added basics for Syncing the configurations between players (Host - Client).
+- Increased the Default speed of the T-rex from 4 to 6.
+	- This should make the T-rex a bit faster and better at keeping up with players.
+- Added logic for the T-rex to stop chasing when the height difference with the targeted player is too high.
+	- This should make the T-rex feel a bit more responsive and cause it to go back to it's searching state when it cannot reach the player.
+	- This is a solution but difficult to fine-tune as it could also cause the T-rex to stop chasing immediatly after it targets a player already on higher elevation.
+
+**NOTE:** Feel free to create/open an issue on Github about problems you encounter or in case something isn't working / too buggy.
+
+
 ## 1.0.7
 - Changed the in game name of JPOGTrex to "T-rex":
 	- When scanning the T-rex it should now be called "T-rex" instead of "JPOGTrex".

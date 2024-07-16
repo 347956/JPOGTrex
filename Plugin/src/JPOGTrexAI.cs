@@ -1,15 +1,10 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Xml.Serialization;
 using GameNetcodeStuff;
-using LethalLib.Modules;
+using JPOGTrex.Configuration;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.Assertions.Must;
-using static MonoMod.Cil.RuntimeILReferenceBag.FastDelegateInvokers;
 
 namespace JPOGTrex {
 
@@ -41,7 +36,7 @@ namespace JPOGTrex {
         private System.Random enemyRandom = null!;
         private bool isDeadAnimationDone;
         private bool isHungry = true;
-        private float defaultSpeed = 4f;
+        private float defaultSpeed = 6f;
         private State previousState = State.Idle;
         private bool inKillAnimation;
         private bool inEatingAnimation;
@@ -67,6 +62,7 @@ namespace JPOGTrex {
         private float suspicionDecreaseTimeInterval = 2.0f;
         private float timeSinceLostPlayer = 0.0f;
         private float maxSearchtime = 20.0f;
+        private float stopChaseHeight = 12f;
         private float previousSpeed;
         private Vector3 lastKnownPositionTargetPlayer;
         private bool isMovingTowardsLastKnownPosition;
@@ -152,6 +148,7 @@ namespace JPOGTrex {
             positionRandomness = new Vector3(0, 0, 0);
             enemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
             isDeadAnimationDone = false;
+            defaultSpeed = PluginConfig.Instance.DefaultSpeed.Value;
             SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
         }
 
@@ -297,6 +294,20 @@ namespace JPOGTrex {
                         agent.speed = defaultSpeed * 2f;
                         previousState = State.ChasingPlayer;
                         SetWalkingAnimationServerRpc(agent.speed);
+                    }
+                    if (targetPlayer != null)
+                    {
+                        float heightDifference = Mathf.Abs(transform.position.y - targetPlayer.transform.position.y);
+                        LogIfDebugBuild($"JPOGTrex: Height Difference between targetPlayer: [{heightDifference}]");
+                        if (heightDifference > stopChaseHeight)
+                        {
+                            targetPlayer = null;
+                            isMovingTowardsLastKnownPosition = false;
+                            suspicionLevel = 60;
+                            timeSinceLostPlayer = 0.0f;
+                            LogIfDebugBuild($"JPOGTrex: TargetPlayer was too high to reach!");
+                            SwitchToBehaviourServerRpc((int)State.SearchingForPlayer);
+                        }
                     }
                     //Check if the player is targetable (not in ship or facility)
                     CheckIfPlayerIsTargetableServerRpc();
@@ -1178,28 +1189,28 @@ namespace JPOGTrex {
                 previousSpeed = currentSpeed;
                 return;
             }
-            else if (currentSpeed > 1f && currentSpeed <= 4f)
+            else if (currentSpeed > 2f && currentSpeed <= 6f)
             {
                 LogIfDebugBuild($"JPOGTrex: Speed = [{currentSpeed}] || animation = [walking]");
                 DoAnimationClientRpc("startWalk");
                 previousSpeed = currentSpeed;
                 return;
             }
-            else if (currentSpeed > 4f && currentSpeed <= 6f)
+            else if (currentSpeed > 6f && currentSpeed <= 12f)
             {
                 LogIfDebugBuild($"JPOGTrex: Speed = [{currentSpeed}] || animation = [running]");
                 DoAnimationClientRpc("chasingRun");
                 previousSpeed = currentSpeed;
                 return;
             }
-            else if (currentSpeed > 0f && currentSpeed <= 1f)
+            else if (currentSpeed > 0f && currentSpeed <= 2f)
             {
                 LogIfDebugBuild($"JPOGTrex: Speed = [{currentSpeed}] || animation = [walking-slow]");
                 DoAnimationClientRpc("slowDown");
                 previousSpeed = currentSpeed;
                 return;
             }
-            else if (currentSpeed > 6f)
+            else if (currentSpeed > 12f)
             {
                 LogIfDebugBuild($"JPOGTrex: Speed = [{currentSpeed}] || animation = [running-fast]");
                 DoAnimationClientRpc("speedUp");
