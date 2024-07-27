@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 3501805982
+CRC: 406789317
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 5615c542891800312ce1c103d921fdda
+    Hash: 027acb79534768bd85002ac52962d6bd
   TypeTreeHash:
     serializedVersion: 2
-    Hash: f5b2ae278b7c7fa8dda34a3d6eefc719
+    Hash: e7662096d08ebd8b79022dbd1b8cd9e0
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 5615c542891800312ce1c103d921fdda
+    Hash: 027acb79534768bd85002ac52962d6bd
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -60,8 +60,6 @@ ClassTypes:
   Script: {fileID: 11500000, guid: d3cecf05b78b173605122a700874719c, type: 3}
 - Class: 115
   Script: {instanceID: 0}
-- Class: 135
-  Script: {instanceID: 0}
 - Class: 137
   Script: {instanceID: 0}
 - Class: 195
@@ -83,6 +81,7 @@ SerializeReferenceClassIdentifiers:
   ClassName: NavSizeLimit
 Assets:
 - Assets/ModAssets/JPOGTrex/Audio/Growl01/TrexGrowl01.wav
+- Assets/ModAssets/JPOGTrex/Materials/Trex_with_opacity.png
 - Assets/ModAssets/JPOGTrex/Audio/TrexDeath.wav
 - Assets/ModAssets/JPOGTrex/Materials/render.png
 - Assets/ModAssets/JPOGTrex/Materials/MapDotRed.mat
@@ -96,6 +95,7 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Audio/Sniff01.mp3
 - Assets/ModAssets/JPOGTrex/Models/JPOG-TrexV2.fbx
 - Assets/ModAssets/JPOGTrex/Audio/Bite01.mp3
+- Assets/ModAssets/JPOGTrex/Materials/TrexMaterial.mat
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Hit_Lt01.anim
 - Assets/ModAssets/JPOGTrex/Materials/Trex.png
 - Assets/ModAssets/JPOGTrex/Materials/Trex_opa.png
@@ -118,6 +118,7 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_Shake_Lp10.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Inj_Lp00.anim
 - Assets/ModAssets/JPOGTrex/Audio/Roar01/TrexRoar01.wav
+- Assets/ModAssets/JPOGTrex/Materials/Cleaned_Trex.png
 - Assets/ModAssets/JPOGTrex/Audio/TrexHurt.wav
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Chew_lp01.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Walk_lp00.anim

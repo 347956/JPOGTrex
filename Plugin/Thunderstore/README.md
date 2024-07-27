@@ -37,11 +37,11 @@ In the future I would like to make add more behaviours to the T-rex, and make it
 - Add other JPOG dinosaurs.
 
 ### TODO 🛠️
-- Make improvements to the audio (mainly the roars)
+- Make improvements to the audio (mainly the roars) ✅
 - Make the T-rex attack other entities
 - Make the T-rex will eat other entities
 - Make the T-rex's collision boxes better
-- Make the hit detection of the T-rex better
+- Make the hit detection of the T-rex better ✅
 - Fix the running animation for the T-rex. For some reason the T-rex's right foot has a strange animation when running.
 - Fix the T-rex's "MouthGrip" not being set propperly. ✅
 - Add adrenaline effect to players that are seen moving by the T-rex

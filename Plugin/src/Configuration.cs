@@ -28,6 +28,7 @@ namespace JPOGTrex.Configuration {
         public ConfigEntry<bool> CustomSpawnweightPerLevel;
         public ConfigEntry<float> DefaultSpeed;
         public ConfigEntry<int> MaxTrexCount;
+        //public ConfigEntry<int> PlayersToEat;
 
         public PluginConfig(ConfigFile cfg)
         {
@@ -36,6 +37,9 @@ namespace JPOGTrex.Configuration {
             MaxTrexCount = cfg.Bind("Spawning - General", "Max T-rex Count", 1, "Increasing this number makes it possible for more T-rexes to spawn naturally.");
 
             DefaultSpeed = cfg.Bind("General", "Default speed", 6f, "The default speed of the T-rex. Increasing the default speed will also increase the chasing speed e.g. default speed * 2 = chasing speed");
+
+/*            PlayersToEat = cfg.Bind("General", "Amount of players to eat untill no longer the T-rex is no longer hungry", 2, "When the T-rex \"eats\" a player their body is gone/no longer teleportable, similar to a Forest Giant.\n" +
+                "After the T-rex is no longer hungry it will drop the bodies of players in it's mouth");*/
 
             SpawnWeight = cfg.Bind("Spawning - General", "Spawn weight", 20,
                 "The spawn chance weight for JPOGTrex, relative to other existing enemies.\n" +

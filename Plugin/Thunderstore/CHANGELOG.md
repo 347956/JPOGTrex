@@ -1,3 +1,18 @@
+## 1.0.9
+- Animations:
+	- When the T-rex is sniffing/roaring, the breathing animation will continue making it feel a bit less stiff / T pose.
+- Behavior:  
+(**These two changes should also fix getting killed inside of the ship through the wall**)
+	- **ONE:** Changed the Hit detection logic from a fixed "kill zone" hitbox in front of the T-rex to a collider that moves with the head during the grabbing animations and detects if it connects with a player.  
+		- This should make the grab attack feel a bit smoother and more natural compared to the previous method. It should also give you more and/or a fairer chance to survive the grab attack (e.g. The T-rex missing).
+	- **TWO:** Fixed the Chase logic to stop the T-rex from chasing you in the ship.  
+		- If you run inside of the ship when the T-rex is chasing you, it will immediately stop the chase and return to its roaming/searching state (similar to the forest giant).
+- GitHub Issue:
+	- Added logic that enables and disables autobraking during the chase and grab phase, this should help the T-rex close in on its target.
+		- The "Auto Braking" setting for the Nav Mesh Agent in Unity causes the T-rex to slow down when it reaches its target destination. Enabling "Auto Braking" causes the T-rex to slowdown prematurely, disabling "Auto Braking" causes the T-rex to overshoot the target and orbit/slide/drift around it.
+	
+**NOTE:** Feel free to create/open an issue on GitHub about problems you encounter or in case something isn't working / too buggy.
+
 ## 1.0.8
 - V55:
 	- I have tested the T-rex a bit myself and so far it works "normal" (just as before v55) and I don't think there are any changes that would break the T-rex.
@@ -12,7 +27,7 @@
 	- This should make the T-rex feel a bit more responsive and cause it to go back to it's searching state when it cannot reach the player.
 	- This is a solution but difficult to fine-tune as it could also cause the T-rex to stop chasing immediatly after it targets a player already on higher elevation.
 
-**NOTE:** Feel free to create/open an issue on Github about problems you encounter or in case something isn't working / too buggy.
+**NOTE:** Feel free to create/open an issue on GitHub about problems you encounter or in case something isn't working / too buggy.
 
 
 ## 1.0.7

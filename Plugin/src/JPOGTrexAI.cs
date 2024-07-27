@@ -1,6 +1,8 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using GameNetcodeStuff;
 using JPOGTrex.Configuration;
 using Unity.Netcode;
@@ -26,6 +28,7 @@ namespace JPOGTrex {
         public AudioSource trexSubRoarSFX = null!;
         private Transform? mouthBone = null!;
         private List<DeadBodyInfo>carryingBodies = new List<DeadBodyInfo>();
+        private List<int> hitPlayerIds = new List<int>();
         private GameObject modelD = null!;
         public float scrutiny = 1f;
 #pragma warning restore 0649
@@ -67,6 +70,10 @@ namespace JPOGTrex {
         private Vector3 lastKnownPositionTargetPlayer;
         private bool isMovingTowardsLastKnownPosition;
         private bool foundPlayerInCloseProx = false;
+        private bool inGrabAttack;
+        private int maxPlayersToEat;
+        private int playersEaten = 0;
+        private float stoppingThreshold = 9;
 
         ThreatType IVisibleThreat.type => ThreatType.ForestGiant;
 
@@ -139,7 +146,7 @@ namespace JPOGTrex {
 
         public override void Start() {
             base.Start();
-            attackRange = 5f;
+            attackRange = 10f;
             //SetBonesServerRpc();
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
@@ -149,6 +156,8 @@ namespace JPOGTrex {
             enemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
             isDeadAnimationDone = false;
             defaultSpeed = PluginConfig.Instance.DefaultSpeed.Value;
+            maxPlayersToEat = 2;
+            agent.stoppingDistance = 0f;
             SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
         }
 
@@ -186,7 +195,7 @@ namespace JPOGTrex {
             timeSinceNewRandPos += Time.deltaTime;
 
             var state = currentBehaviourStateIndex;
-            if (targetPlayer != null && (state == (int)State.GrabPlayer || state == (int)State.GrabbedPlayer || state == (int)State.GrabbingPlayer || state == (int)State.EatingPlayer)) {
+            if (targetPlayer != null && (state == (int)State.GrabPlayer || state == (int)State.GrabbedPlayer || state == (int)State.GrabbingPlayer || state == (int)State.EatingPlayer || state == (int)State.SpottedPlayer || state == (int)State.SpottedPlayer)) {
                 turnCompass.LookAt(targetPlayer.gameplayCamera.transform.position);
                 transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(new Vector3(0f, turnCompass.eulerAngles.y, 0f)), 4f * Time.deltaTime);
             }
@@ -212,6 +221,7 @@ namespace JPOGTrex {
                         StopAllCoroutines();
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [SearchingForPlayer]");
                         agent.speed = defaultSpeed;
+                        agent.autoBraking = true;
                         SetWalkingAnimationServerRpc(agent.speed);
                         StartSearch(transform.position);
                         previousState = State.SearchingForPlayer;
@@ -227,12 +237,12 @@ namespace JPOGTrex {
                     }
                     //FoundClosestPlayerInRangeServerRpc();
                     CheckLineOfSightServerRpc();
-                    LogIfDebugBuild($"JPOGTrex: seconds since a player was moving = [{timeSinceSeeingPlayerMove}]");
+                    //LogIfDebugBuild($"JPOGTrex: seconds since a player was moving = [{timeSinceSeeingPlayerMove}]");
                     if (movingPlayer != null && suspicionLevel == 100f)
                     {
-                        LogIfDebugBuild($"JPOGTrex: Last moving player [{movingPlayer.playerClientId}] will be set as the player to target. Suspicion level = [{suspicionLevel}]");
+                        //LogIfDebugBuild($"JPOGTrex: Last moving player [{movingPlayer.playerClientId}] will be set as the player to target. Suspicion level = [{suspicionLevel}]");
                         targetPlayer = movingPlayer;
-                        LogIfDebugBuild($"JPOGTrex: Set player [{targetPlayer.playerClientId}] as the target player!");
+                        //LogIfDebugBuild($"JPOGTrex: Set player [{targetPlayer.playerClientId}] as the target player!");
                         movingPlayer = null;
                         StopSearch(currentSearch);
                         SwitchToBehaviourStateServerRpc((int)State.SpottedPlayer);
@@ -245,7 +255,7 @@ namespace JPOGTrex {
                     if (previousState != State.SpottedPlayer && !isSniffingStarted)
                     {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [SpottedPlayer]");
-                        agent.speed = 0f;
+                        agent.speed = 2f;
                         sniffing = true;
                         LogIfDebugBuild("JPOGTrex: Spotted Player!");
                         SetWalkingAnimationServerRpc(agent.speed);
@@ -267,7 +277,7 @@ namespace JPOGTrex {
                     if(previousState != State.SpottedPlayer && previousState != State.Roaring)
                     {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [Roaring]");
-                        agent.speed = 1f;
+                        agent.speed = 0f;
                         SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.Roaring;
                     } 
@@ -297,8 +307,22 @@ namespace JPOGTrex {
                     }
                     if (targetPlayer != null)
                     {
+                        SetDestinationToPosition(targetPlayer.transform.position);
+                        HandleBraking();
+                        CheckForPlayersInRangeOfGrabAttackServerRpc();
+                        if (targetPlayer.isInHangarShipRoom)
+                        {
+                            targetPlayer = null;
+                            suspicionLevel = 60;
+                            timeSinceLostPlayer = 0.0f;
+                            LogIfDebugBuild($"JPOGTrex: TargetPlayer is inside the ship, stopping chase");
+                            SwitchToBehaviourServerRpc((int)State.SearchingForPlayer);
+                        }
+                    }
+                    if (targetPlayer != null)
+                    {
                         float heightDifference = Mathf.Abs(transform.position.y - targetPlayer.transform.position.y);
-                        LogIfDebugBuild($"JPOGTrex: Height Difference between targetPlayer: [{heightDifference}]");
+                        //LogIfDebugBuild($"JPOGTrex: Height Difference between targetPlayer: [{heightDifference}]");
                         if (heightDifference > stopChaseHeight)
                         {
                             targetPlayer = null;
@@ -309,19 +333,7 @@ namespace JPOGTrex {
                             SwitchToBehaviourServerRpc((int)State.SearchingForPlayer);
                         }
                     }
-                    //Check if the player is targetable (not in ship or facility)
                     CheckIfPlayerIsTargetableServerRpc();
-                    
-                    //TODO: Check if the player can be reached.
-                    //This works but not completely, if a player jumps the T-rex instantly stop chasing the player as the position mid air can not be reached.
-                    /*                    LogIfDebugBuild($"JPOGTrex: Path = [{path1.status}]");
-                                        CheckIfPlayerIsReachableServerRpc();*/
-
-
-                    //Check if the target player is still visible and in chasing range
-                    //If no longer visible, the target player is set to null
-                    //CheckLineOfSightDuringChaseServerRpc();
-
                     if (targetPlayer != null &&
                         (Vector3.Distance(transform.position, targetPlayer.transform.position) > visionRangeChase && !CheckLineOfSightForPosition(targetPlayer.transform.position)))
                     {
@@ -360,11 +372,6 @@ namespace JPOGTrex {
                         suspicionLevel= 60;
                         SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
                     }
-                    if(targetPlayer != null)
-                    {
-                        SetDestinationToPosition(targetPlayer.transform.position);
-                        CheckForPlayersInRangeOfGrabAttackServerRpc();
-                    }
                     break;
 
                 case (int)State.AttackingEntity:
@@ -377,26 +384,44 @@ namespace JPOGTrex {
                     if (previousState != State.GrabPlayer)
                     {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [GrabPlayer]");
-                        agent.speed = defaultSpeed / 2;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.GrabPlayer;
+                        if (timeSinceHittingLocalPlayer >= 4f)
+                        {
+                            beginningGrab = true;
+                            StartCoroutine(BeginGrab());
+                        }
+                        if (targetPlayer != null)
+                        {
+                            SetDestinationToPosition(targetPlayer.transform.position);
+                            HandleBraking();
+                            if (targetPlayer.isInHangarShipRoom)
+                            {
+                                targetPlayer = null;
+                                suspicionLevel = 60;
+                                timeSinceLostPlayer = 0.0f;
+                                LogIfDebugBuild($"JPOGTrex: TargetPlayer is inside the ship, stopping chase");
+                                SwitchToBehaviourServerRpc((int)State.SearchingForPlayer);
+                            }
+                        }
                     }
-                    if (!beginningGrab && timeSinceHittingLocalPlayer >= 4f)
+                    LogIfDebugBuild($"JPOGTrex: Checking if the grab attack has finished and if any player(s) are hit. | beginningGrb = [{beginningGrab}] | inGrabAttack = [{inGrabAttack}] | hitConnect = [{hitConnect}]");
+                    if (!beginningGrab)
                     {
-                        beginningGrab = true;
-                        StartCoroutine(BeginGrab());
-                    }
-                    if (!hitConnect)
-                    {
-                        LogIfDebugBuild("JPOGTrex: Hit did not connect, returning to chasingPlayer");
-                        StopCoroutine(BeginGrab());
-                        SwitchToBehaviourStateServerRpc((int)State.ChasingPlayer);
-                        break;
-                    }
-                    if (hitConnect)
-                    {
-                        LogIfDebugBuild("JPOGTrex: Hit connect, Switching to GrabbingPlayer");
-                        SwitchToBehaviourStateServerRpc((int)State.GrabbingPlayer);
+                        LogIfDebugBuild($"JPOGTrex: grab Attack finished checking if hit connected");
+                        if (hitConnect)
+                        {
+                            LogIfDebugBuild("JPOGTrex: Hit connect, Switching to GrabbingPlayer");
+                            agent.speed = defaultSpeed / 2;
+                            SetWalkingAnimationServerRpc(agent.speed);
+                            hitConnect = false;
+                            SwitchToBehaviourStateServerRpc((int)State.GrabbingPlayer);
+                        }
+                        else if (!hitConnect && !inGrabAttack)
+                        {
+                            LogIfDebugBuild("JPOGTrex: Hit did not connect, returning to chasingPlayer");
+                            hitConnect = false;
+                            SwitchToBehaviourStateServerRpc((int)State.ChasingPlayer);
+                        }
                     }
                     break;
 
@@ -413,10 +438,10 @@ namespace JPOGTrex {
                         agent.speed = 0;
                         previousState = State.GrabbingPlayer;
                         SetWalkingAnimationServerRpc(agent.speed);
-                        KillPlayerServerRpc((int)targetPlayer.playerClientId);
+                        //KillPlayerServerRpc((int)targetPlayer.playerClientId);
                         ShakingBodiesServerRpc();
                     }
-                    if(!shakingBoddies && isHungry)
+                    if (!shakingBoddies && isHungry)
                     {
                         LogIfDebugBuild($"JPOGTrex: shakingBoddies = [{shakingBoddies}] || isHungry =[{isHungry}] || Switching to eat body");
                         SwitchToBehaviourStateServerRpc((int)State.EatingPlayer);
@@ -437,7 +462,7 @@ namespace JPOGTrex {
                         SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.EatingPlayer;
                     }
-                    if(isHungry)
+                    if (isHungry)
                     {
                         LogIfDebugBuild($"JPOGTrex: inEatingAnimation = [{inEatingAnimation}] || isHungry =[{isHungry}] || beginning to eat body");
                         EatPlayerServerRpc();
@@ -644,6 +669,32 @@ namespace JPOGTrex {
         }
 
         [ServerRpc(RequireOwnership = false)]
+        private void StartGrabCheckServerRpc()
+        {
+            inGrabAttack = true;
+            StartGrabCheckClientRpc();
+        }
+
+        [ClientRpc]
+        private void StartGrabCheckClientRpc()
+        {
+            StartCoroutine(CheckIfGrabHitDuringAnimation());
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void StopGrabCheckServerRpc()
+        {
+            StopGrabCheckClientRpc();
+        }
+
+        [ClientRpc]
+        private void StopGrabCheckClientRpc()
+        {
+            LogIfDebugBuild($"JPOGTrex: Calling to stop grab check");
+            StopGrabCheckCoroutine();
+        }
+
+        [ServerRpc(RequireOwnership = false)]
         public void GrabAttackHitServerRpc()
         {
             GrabAttackHit();
@@ -678,7 +729,6 @@ namespace JPOGTrex {
         public void StopGrabAttackClientRpc()
         {
             StopCoroutine(BeginGrab());
-            beginningGrab = false;
         }
 
         [ServerRpc]
@@ -849,12 +899,12 @@ namespace JPOGTrex {
             suspicionLevel = Mathf.Clamp(suspicionLevel + increasRateSuspicion, 0, maxSuspicionLevel);
             decreaseRateSuspicion = 0;
             timeSinceSeeingPlayerMove = 0;
-            LogIfDebugBuild($"JPOGTrex: Suspicion level increased. New value = [{suspicionLevel}]");
+            //LogIfDebugBuild($"JPOGTrex: Suspicion level increased. New value = [{suspicionLevel}]");
         }
         private void DecreaseSuspicion()
         {
             suspicionLevel = Mathf.Clamp(suspicionLevel - decreaseRateSuspicion, 0, maxSuspicionLevel);
-            LogIfDebugBuild($"JPOGTrex: Suspicion level decreased. New value = [{suspicionLevel}]");
+            //LogIfDebugBuild($"JPOGTrex: Suspicion level decreased. New value = [{suspicionLevel}]");
         }
 
         private void CheckLineOfSight()
@@ -862,18 +912,18 @@ namespace JPOGTrex {
             PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(60f, visionRangeSearching, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
             if (allPlayersInLineOfSight != null)
             {
-                LogIfDebugBuild($"JPOGTrex: allPlayersInLineOfSight length: {allPlayersInLineOfSight.Length}"); 
-                LogIfDebugBuild($"JPOGTrex: allPlayerScripts length: {StartOfRound.Instance.allPlayerScripts.Length}");
+                //LogIfDebugBuild($"JPOGTrex: allPlayersInLineOfSight length: {allPlayersInLineOfSight.Length}"); 
+                //LogIfDebugBuild($"JPOGTrex: allPlayerScripts length: {StartOfRound.Instance.allPlayerScripts.Length}");
                 //LogIfDebugBuild("Looking for moving players in line of sight");
                 foreach (var playerControllerB in allPlayersInLineOfSight)
                 {
                     if (playerControllerB != null && !playerControllerB.isPlayerDead && !isInsidePlayerShip)
                     {
-                        LogIfDebugBuild($"JPOGTrex: Checking player with ID {playerControllerB.playerClientId}");
+                        //LogIfDebugBuild($"JPOGTrex: Checking player with ID {playerControllerB.playerClientId}");
                         if (CheckIfPlayerIsmoving(playerControllerB))
                         {
                             IncreaseSuspicionServerRpc();
-                            LogIfDebugBuild($"JPGOTrex: Saw player [{playerControllerB.playerClientId}] moving");
+                            //LogIfDebugBuild($"JPGOTrex: Saw player [{playerControllerB.playerClientId}] moving");
                             movingPlayer = playerControllerB;
 
                             //TODO add adrinaline effect to players that are seen moving
@@ -888,29 +938,29 @@ namespace JPOGTrex {
         //Check wether this will need an Rpc or not
         private bool CheckIfPlayerIsmoving(PlayerControllerB playerToCheck)
         {
-            LogIfDebugBuild($"JPOGTrex: Checking if player {playerToCheck.playerClientId} is moving");
+            //LogIfDebugBuild($"JPOGTrex: Checking if player {playerToCheck.playerClientId} is moving");
             localPlayerTurnDistance += StartOfRound.Instance.playerLookMagnitudeThisFrame;
             if (localPlayerTurnDistance > 0.1f && Vector3.Distance(playerToCheck.transform.position, base.transform.position) < 10f)
             {
-                LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (turn distance)");
+                //LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (turn distance)");
                 return true;
             }
             if (playerToCheck.performingEmote)
             {
-                LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (performing emote)");
+                //LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (performing emote)");
                 return true;
             }
             if (Time.realtimeSinceStartup - StartOfRound.Instance.timeAtMakingLastPersonalMovement < 0.25f)
             {
-                LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (recent personal movement)");
+                //LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (recent personal movement)");
                 return true;
             }
             if (playerToCheck.timeSincePlayerMoving < 0.05f)
             {
-                LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (recent movement)");
+                //LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is moving (recent movement)");
                 return true;
             }
-            LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is not moving");
+            //LogIfDebugBuild($"JPOGTrex: Player {playerToCheck.playerClientId} is not moving");
             return false;
         }    
 
@@ -918,18 +968,18 @@ namespace JPOGTrex {
         //Checks if the player is in range for an attack
         private void CheckForPlayersInRangeOfGrabAttack()
         {
-            LogIfDebugBuild("JPOGTrex: Checking if Player can be grabbed");
+            //LogIfDebugBuild("JPOGTrex: Checking if Player can be grabbed");
             if(movingPlayer != null || targetPlayer != null)
             {
                 float distanceToPlayer = Vector3.Distance(transform.position, targetPlayer.transform.position);
                 if(distanceToPlayer <= attackRange)
                 {
-                    LogIfDebugBuild($"JPOGTrex: Grab attack can hit player [{targetPlayer.playerClientId}]!");
+                    //LogIfDebugBuild($"JPOGTrex: Grab attack can hit player [{targetPlayer.playerClientId}]!");
                     SwitchToBehaviourStateServerRpc((int)State.GrabPlayer);
                 }
                 else
                 {
-                    LogIfDebugBuild("JPOGTrex: No players to hit!");
+                    //LogIfDebugBuild("JPOGTrex: No players to hit!");
                 }
             }
             else
@@ -1001,11 +1051,99 @@ namespace JPOGTrex {
             }
         }
 
+        public void OnAnimationEventStartGrabCheck()
+        {
+            if (IsOwner)
+            {
+                inGrabAttack = true;
+                StartCoroutine(CheckIfGrabHitDuringAnimation());
+                StartGrabCheckServerRpc();
+            }
+        }
+        public void OnAnimationEventEndGrabCheck()
+        {
+            if (IsOwner)
+            {
+                inGrabAttack = false;
+                StopGrabCheckCoroutine();
+                StopGrabCheckServerRpc();
+            }
+        }
+
+        private void StopGrabCheckCoroutine()
+        {
+            inGrabAttack = false;
+            LogIfDebugBuild("JPOGTrex: Stopping grab check Coroutine");
+            StopCoroutine(CheckIfGrabHitDuringAnimation());
+        }
+
+        //Checks if the attack should hit the player (during the animation of the grab/bite)
+        public void GrabAttackHitAnimation()
+        {
+            //LogIfDebugBuild("JPOGTrex: Checking if Grab attack animation hit player(s)");
+            int playerLayer = 1 << 3;
+            Collider[] hitColliders = Physics.OverlapBox(mouthAttackHitBox.position, mouthAttackHitBox.localScale, Quaternion.identity, playerLayer);
+            bool hitPlayer = false;
+            if (hitColliders.Length > 0)
+            {
+                foreach (var player in hitColliders)
+                {
+                    PlayerControllerB playerControllerB = MeetsStandardPlayerCollisionConditions(player);                    
+                    if (playerControllerB != null)
+                    {
+                        int playerId = (int)playerControllerB.playerClientId;
+                        LogIfDebugBuild($"JPOGTrex: Checking if player: [{playerId}] is not yet hit");
+                        if (!hitPlayerIds.Contains((int)playerControllerB.playerClientId))
+                        {
+                            LogIfDebugBuild($"JPOGTrex: Grab Attack Hit player: [{playerControllerB.playerClientId}]");
+                            timeSinceHittingLocalPlayer = 0f;
+                            hitPlayer = true;
+                            LogIfDebugBuild($"JPOGTrex: hitPlayer = [{hitPlayer}]");
+                            LogIfDebugBuild($"JPOGTrex: calling to kill player: [{playerControllerB.playerClientId}]");
+                            KillPlayerServerRpc((int)playerControllerB.playerClientId);
+                            hitPlayerIds.Add((int)playerControllerB.playerClientId);
+                        }
+                        else
+                        {
+                            LogIfDebugBuild($"JPOGTrex: Player [{playerId}] has already been hit");
+                        }
+                    }
+                    else
+                    {
+                        LogIfDebugBuild("JPOGTrex: PlayerControllerB is null or player does not meet collision conditions");
+                    }
+                }
+            }
+            if (hitPlayer)
+            {
+                LogIfDebugBuild($"JPOGTrex: hitPlayer = [{hitPlayer}] > setting hitConnect to true");
+                SetHitConnectToTrueServerRpc();
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void SetHitConnectToTrueServerRpc()
+        {
+            SetHitConnectToTrueClientRpc();
+        }
+        [ClientRpc]
+        private void SetHitConnectToTrueClientRpc()
+        {
+            SetHitConnectToTrue();
+        }
+
+        private void SetHitConnectToTrue()
+        {
+            hitConnect = true;
+            LogIfDebugBuild($"JPOGTrex: hitConnect = [{hitConnect}]");
+        }
+
         //Player body Interaction
         private void TakeBodyInMouth(int playerId)
         {
             LogIfDebugBuild($"JPOGTrex: Taking boddy of player [{playerId}] in mouth");
-            DeadBodyInfo killedPlayerBody = StartOfRound.Instance.allPlayerScripts[playerId].deadBody;           
+            DeadBodyInfo killedPlayerBody = StartOfRound.Instance.allPlayerScripts[playerId].deadBody;
+            LogIfDebugBuild($"JPOGTrex: deadbody of player cause of death: [{killedPlayerBody.causeOfDeath}]");
             if (killedPlayerBody != null)
             {
                 killedPlayerBody.attachedTo = mouthGrip;
@@ -1014,7 +1152,35 @@ namespace JPOGTrex {
                 killedPlayerBody.MakeCorpseBloody();
 
                 //The T-rex Should be able to multikill so all bodies it grabs are added to the list
+
+                LogIfDebugBuild($"JPOGTrex: Adding dead body to carryingBodies");
                 carryingBodies.Add(killedPlayerBody);
+                LogIfDebugBuild($"JPOGTrex: carryingBodies count = [{carryingBodies.Count}]");
+            }
+        }
+        private void HandleBraking()
+        {
+            if (targetPlayer != null)
+            {
+                float distanceToTarget = Vector3.Distance(agent.transform.position, targetPlayer.transform.position);
+
+                if (distanceToTarget < stoppingThreshold)
+                {
+                    LogIfDebugBuild($"JPOGTrex: Target within Stopping treshold enabling auto braking");
+                    agent.stoppingDistance = 7;
+                    agent.autoBraking = true;
+                    LogIfDebugBuild($"JPOGTrex:Auto Braking was set to: [{agent.autoBraking}]");
+                    SetWalkingAnimationServerRpc(agent.speed);
+                }
+                else
+                {
+                    LogIfDebugBuild($"JPOGTrex: Target outside stopping treshold disabling auto braking");
+                    agent.stoppingDistance = 0;
+                    agent.autoBraking = false;
+                    LogIfDebugBuild($"JPOGTrex:Auto Braking was set to: [{agent.autoBraking}]");
+                    agent.speed = defaultSpeed * 2f;
+                    SetWalkingAnimationServerRpc(agent.speed);
+                }
             }
         }
 
@@ -1273,26 +1439,26 @@ namespace JPOGTrex {
         //These methods are called during certain frames in the animation
         private void PlayAudioClip(AudioClip audioClip)
         {
-            LogIfDebugBuild("JPOGTrex: Playing audio clip through CreatureVoice");
+            //LogIfDebugBuild("JPOGTrex: Playing audio clip through CreatureVoice");
             creatureVoice.PlayOneShot(audioClip);
             WalkieTalkie.TransmitOneShotAudio(creatureVoice, audioClip);
         }
         private void PlayFootStepAudioClip(AudioClip audioClip)
         {
-            LogIfDebugBuild("JPOGTrex: Playing audio clip through CreatureSFX");
+            //LogIfDebugBuild("JPOGTrex: Playing audio clip through CreatureSFX");
             creatureSFX.PlayOneShot(audioClip);
             WalkieTalkie.TransmitOneShotAudio(creatureSFX, audioClip);
             ShakeCamera();
         }
         private void PlayTrexRoarAudioClipt(AudioClip audioClip)
         {
-            LogIfDebugBuild("JPOGTrex: Playing audio clip through TrexRoarSFX");
+            //LogIfDebugBuild("JPOGTrex: Playing audio clip through TrexRoarSFX");
             trexRoarSFX.PlayOneShot(audioClip, 2f);
             WalkieTalkie.TransmitOneShotAudio(trexRoarSFX, audioClip);
         }
         private void PlayTrexSubRoarAudioClipt(AudioClip audioClip)
         {
-            LogIfDebugBuild("JPOGTrex: Playing audio clip through TrexSubRoarSFX");
+            //LogIfDebugBuild("JPOGTrex: Playing audio clip through TrexSubRoarSFX");
             trexSubRoarSFX.PlayOneShot(audioClip, 1f);
             WalkieTalkie.TransmitOneShotAudio(trexRoarSFX, audioClip);
         }
@@ -1328,14 +1494,33 @@ namespace JPOGTrex {
 
         private IEnumerator BeginGrab()
         {
+            StartGrabCheckServerRpc();
             LogIfDebugBuild("JPOGTrex: Beginning grab Attack!");
             DoAnimationClientRpc("grabPlayer");
-            GrabAttackHitServerRpc();
+            //GrabAttackHitServerRpc();
             DoAnimationClientRpc("grabbedPlayer");
             yield return new WaitForSeconds(1.2f);
+            StopGrabCheckServerRpc();
+            LogIfDebugBuild("JPOGTrex: grab attack finished stting grabAttack to false");
             beginningGrab = false;
+            LogIfDebugBuild($"JPOGTrex: beginningGrab = [{beginningGrab}]");
+            LogIfDebugBuild("JPOGTrex: grab attack finished clearing hitPlayerIds list");
+            hitPlayerIds.Clear();
             yield break;
         }
+
+        private IEnumerator CheckIfGrabHitDuringAnimation()
+        {
+
+            LogIfDebugBuild($"JPOGTrex: Beginning CheckIfGrabHitDuringAnimation Coroutine");
+            inGrabAttack = true;
+            while (inGrabAttack) {
+                GrabAttackHitAnimation();
+                yield return null;
+            }
+            LogIfDebugBuild($"JPOGTrex: CheckIfGrabHitDuringAnimation Coroutine has Ended | inGrabAttack = [{inGrabAttack}]");
+        }
+
         private IEnumerator ShakeGrabbedBody()
         {
             DoAnimationClientRpc("grabbingPlayer");
@@ -1351,13 +1536,13 @@ namespace JPOGTrex {
             //bodyToEat.DeactivateBody(false);
             inEatingAnimation = false;
             isHungry = false;
-
             if (carryingBodies != null && carryingBodies.Count > 0)
             {
                 foreach (var carryingBody in carryingBodies)
                 {
                     LogIfDebugBuild($"JPOGTrex: Deactivating body = [{carryingBody.playerObjectId}]");
                     carryingBody.DeactivateBody(false);
+                    playersEaten++;
                 }
                 //Clears the list to make sure no bodies remain
                 LogIfDebugBuild($"JPOGTrex: Clearing CarryingBodies list");
@@ -1375,6 +1560,11 @@ namespace JPOGTrex {
             }
             LogIfDebugBuild($"JPOGTrex: begin Killing player: [{playerId}]");
             PlayerControllerB killPlayer = StartOfRound.Instance.allPlayerScripts[playerId];
+            if (killPlayer == null || killPlayer.isPlayerDead)
+            {
+                LogIfDebugBuild($"JPOGTrex: Player [{playerId}] is not valid or already dead.");
+                yield break;
+            }
             if (!isEnemyDead)
             {
                 LogIfDebugBuild("JPOGTrex: T-rex is still alive, killing player Continues");
