@@ -9,7 +9,7 @@ A video Tutorial can be found [here](https://www.youtube.com/watch?v=NZ_F8wDczzM
 
 > [!NOTE]  
 > I do not own any of the Assets nor made them myself. The models, animations and some of the audio clips were made by: [Blue Tongue Entertainment](https://en.wikipedia.org/wiki/Blue_Tongue_Entertainment), which was closed down in 2011.  
-> I also got some sounds for the T-rex from the game: [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/).
+> I also got some sounds for the T-Rex from the game: [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/).
 
 ## Dependencies ✅
 
@@ -41,8 +41,8 @@ It should give some tips when encountering problems in this project or your own.
 - Most animation in this project are started from the "any event". I am not sure if this is best practice, but it makes animating a lot easier.
 - Coroutine can be can be used to execute code over frames. Usefull for waiting on animaitons to finish or executing logic at certain points during the animations.
 - Enabling "Has Exit Time" makes animation B wait for animation A to finish in a transition of A > B.
-- The T-rex has a "mouthGrip" transform which is bind to the "mouthBone" of the model.
-  - This way the mouthGrip's transform location can be updated in the code with the mouthBone's transform location, making the mouthGrip match the position of the T-rex's mouth during animations.
+- The T-Rex has a "mouthGrip" transform which is bind to the "mouthBone" of the model.
+  - This way the mouthGrip's transform location can be updated in the code with the mouthBone's transform location, making the mouthGrip match the position of the T-Rex's mouth during animations.
 
 ## Credits 🗣️
 
@@ -53,4 +53,4 @@ It should give some tips when encountering problems in this project or your own.
 - [nomnomab](https://github.com/nomnomab) - [Lethal Company Project Patcher](https://github.com/nomnomab/lc-project-patcher) - used for the Unity Project  
 - [AlbinoGeek](https://github.com/AlbinoGeek) - issue template  
 - [HENDRIX-ZT2 ](https://github.com/HENDRIX-ZT2) & [AdventureT](https://github.com/AdventureT) - creating the blender plugin: [jpog-blender](https://github.com/HENDRIX-ZT2/jpog-blender) that is able to read ".tmd" files from the game: [Jurassic Park: Operation Genisis](https://en.wikipedia.org/wiki/Jurassic_Park:_Operation_Genesis)
-- [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/) - I use some of the sounds from their [T-rex](https://youtu.be/VTaOiCKarqY?si=gmsnWuaOiKZl15iR)
+- [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/) - I use some of the sounds from their [T-Rex](https://youtu.be/VTaOiCKarqY?si=gmsnWuaOiKZl15iR)

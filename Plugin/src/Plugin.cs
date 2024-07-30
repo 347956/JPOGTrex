@@ -68,23 +68,16 @@ namespace JPOGTrex {
             NetworkPrefabs.RegisterNetworkPrefab(JPOGTrex.enemyPrefab);
             // For different ways of registering your enemy, see https://github.com/EvaisaDev/LethalLib/blob/main/LethalLib/Modules/Enemies.cs
             //Sets the spawn weight per level/moond accordingly if enabled, or uses the default spawnweight for all levels.
+
             if (BoundConfig.CustomSpawnweightPerLevel.Value == true)
             {
-                var JPOGTrexLevelRarities = new Dictionary<Levels.LevelTypes, int> {
-                        {Levels.LevelTypes.ExperimentationLevel, BoundConfig.SpawnWeightExperimentation.Value},
-                        {Levels.LevelTypes.AssuranceLevel, BoundConfig.SpawnWeightAssurance.Value},
-                        {Levels.LevelTypes.VowLevel, BoundConfig.SpawnWeightVow.Value},
-                        {Levels.LevelTypes.OffenseLevel, BoundConfig.SpawnWeightMarch.Value},
-                        {Levels.LevelTypes.MarchLevel, BoundConfig.SpawnWeightOffense.Value},
-                        {Levels.LevelTypes.RendLevel, BoundConfig.SpawnWeightRend.Value},
-                        {Levels.LevelTypes.DineLevel, BoundConfig.SpawnWeightDine.Value},
-                        {Levels.LevelTypes.TitanLevel, BoundConfig.SpawnWeightTitan.Value},
-                        {Levels.LevelTypes.AdamanceLevel, BoundConfig.SpawnWeightAdamance.Value},
-                        {Levels.LevelTypes.ArtificeLevel, BoundConfig.SpawnWeightArtifice.Value},
-                        {Levels.LevelTypes.EmbrionLevel, BoundConfig.SpawnWeightEmbrion.Value},
-                        {Levels.LevelTypes.Modded, BoundConfig.SpawnWeightModded.Value}
-                    };
-                var JPOGTrexCustomLevelRarities = new Dictionary<string, int>();
+                var JPOGTrexLevelRarities = GetVanillaLevelRarities();
+                var JPOGTrexCustomLevelRarities = new Dictionary<string, int>()
+                {
+                    {"EGyptLevel", 50},
+                    {"46 Infernis", 69},    // Either LLL or LE(C) name can be used, LethalLib will handle both
+
+                };
                 Enemies.RegisterEnemy(JPOGTrex, JPOGTrexLevelRarities, JPOGTrexCustomLevelRarities, JPOGTrexTN, JPOGTrexTK);
                 Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID}: using custom Spawn Weight(s).");
             }
@@ -113,5 +106,22 @@ namespace JPOGTrex {
                 }
             }
         } 
+        private Dictionary<Levels.LevelTypes, int> GetVanillaLevelRarities()
+        {
+            return new Dictionary<Levels.LevelTypes, int> {
+                        {Levels.LevelTypes.ExperimentationLevel, BoundConfig.SpawnWeightExperimentation.Value},
+                        {Levels.LevelTypes.AssuranceLevel, BoundConfig.SpawnWeightAssurance.Value},
+                        {Levels.LevelTypes.VowLevel, BoundConfig.SpawnWeightVow.Value},
+                        {Levels.LevelTypes.OffenseLevel, BoundConfig.SpawnWeightMarch.Value},
+                        {Levels.LevelTypes.MarchLevel, BoundConfig.SpawnWeightOffense.Value},
+                        {Levels.LevelTypes.RendLevel, BoundConfig.SpawnWeightRend.Value},
+                        {Levels.LevelTypes.DineLevel, BoundConfig.SpawnWeightDine.Value},
+                        {Levels.LevelTypes.TitanLevel, BoundConfig.SpawnWeightTitan.Value},
+                        {Levels.LevelTypes.AdamanceLevel, BoundConfig.SpawnWeightAdamance.Value},
+                        {Levels.LevelTypes.ArtificeLevel, BoundConfig.SpawnWeightArtifice.Value},
+                        {Levels.LevelTypes.EmbrionLevel, BoundConfig.SpawnWeightEmbrion.Value},
+                        {Levels.LevelTypes.Modded, BoundConfig.SpawnWeightModded.Value}
+            };
+        }
     }
 }

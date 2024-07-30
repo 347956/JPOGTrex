@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using GameNetcodeStuff;
 using JPOGTrex.Configuration;
 using Unity.Netcode;
@@ -55,14 +53,14 @@ namespace JPOGTrex {
         private bool doneEating = false;
         private bool shakingBoddies;
         private int visionRangeSearching = 70;
+        private int visionRangeWidth = 60;
         private int visionRangeChase = 50;
         private float suspicionLevel;
-        private float maxSuspicionLevel = 100f;
-        private float increasRateSuspicion = 10f;
-        private float decreaseRateSuspicion = 5f;
-        private float timeSinceSeeingPlayerMove = 0.0f;
-        private float decreaseSuspicionTimer = 0.0f;
-        private float suspicionDecreaseTimeInterval = 2.0f;
+        private float maxSuspicionLevel;
+        private float increasRateSuspicion;
+        private float decreaseRateSuspicion;
+        private float timeSinceSeeingPlayerMove;
+        private float decreaseSuspicionTimer;
         private float timeSinceLostPlayer = 0.0f;
         private float maxSearchtime = 20.0f;
         private float stopChaseHeight = 12f;
@@ -74,6 +72,7 @@ namespace JPOGTrex {
         private int maxPlayersToEat;
         private int playersEaten = 0;
         private float stoppingThreshold = 9;
+        private float lastSuspicionDecreaseTime;
 
         ThreatType IVisibleThreat.type => ThreatType.ForestGiant;
 
@@ -144,7 +143,23 @@ namespace JPOGTrex {
             Plugin.Logger.LogInfo(text);
         }
 
-        public override void Start() {
+        private void AssignConfigVariables()
+        {
+            visionRangeSearching = PluginConfig.Instance.VisionRangeLength.Value;
+            visionRangeChase = PluginConfig.Instance.VisionRangeLength.Value - 20;
+            visionRangeWidth = PluginConfig.Instance.VisionRangeWidth.Value;
+            defaultSpeed = PluginConfig.Instance.DefaultSpeed.Value;
+            maxSuspicionLevel = PluginConfig.Instance.MaxSuspicionLevel.Value;
+            increasRateSuspicion = PluginConfig.Instance.SuspicionIncrement.Value;
+            decreaseRateSuspicion = PluginConfig.Instance.SuspicionDecrement.Value;
+            decreaseSuspicionTimer = PluginConfig.Instance.SuspiciontDecreaseTime.Value;
+            maxPlayersToEat = 2;
+        }
+
+        public override void Start()
+        {
+            AssignConfigVariables();
+            agent.stoppingDistance = 0f;
             base.Start();
             attackRange = 10f;
             //SetBonesServerRpc();
@@ -155,9 +170,6 @@ namespace JPOGTrex {
             positionRandomness = new Vector3(0, 0, 0);
             enemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
             isDeadAnimationDone = false;
-            defaultSpeed = PluginConfig.Instance.DefaultSpeed.Value;
-            maxPlayersToEat = 2;
-            agent.stoppingDistance = 0f;
             SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
         }
 
@@ -191,8 +203,8 @@ namespace JPOGTrex {
                 LogIfDebugBuild($"JPOGTrex: time since losing the player = [{timeSinceLostPlayer}]");
             }
             timeSinceHittingLocalPlayer += Time.deltaTime;
-            timeSinceSeeingPlayerMove += Time.deltaTime;
             timeSinceNewRandPos += Time.deltaTime;
+            timeSinceSeeingPlayerMove += Time.deltaTime;
 
             var state = currentBehaviourStateIndex;
             if (targetPlayer != null && (state == (int)State.GrabPlayer || state == (int)State.GrabbedPlayer || state == (int)State.GrabbingPlayer || state == (int)State.EatingPlayer || state == (int)State.SpottedPlayer || state == (int)State.SpottedPlayer)) {
@@ -237,8 +249,9 @@ namespace JPOGTrex {
                     }
                     //FoundClosestPlayerInRangeServerRpc();
                     CheckLineOfSightServerRpc();
+                    DecreaseSuspicionServerRpc();
                     //LogIfDebugBuild($"JPOGTrex: seconds since a player was moving = [{timeSinceSeeingPlayerMove}]");
-                    if (movingPlayer != null && suspicionLevel == 100f)
+                    if (movingPlayer != null && suspicionLevel == maxSuspicionLevel)
                     {
                         //LogIfDebugBuild($"JPOGTrex: Last moving player [{movingPlayer.playerClientId}] will be set as the player to target. Suspicion level = [{suspicionLevel}]");
                         targetPlayer = movingPlayer;
@@ -248,7 +261,6 @@ namespace JPOGTrex {
                         SwitchToBehaviourStateServerRpc((int)State.SpottedPlayer);
                         break;
                     }
-                    CheckAndDecreaseSuspicionServerRpc();
                     break;
 
                 case (int)State.SpottedPlayer:
@@ -313,7 +325,7 @@ namespace JPOGTrex {
                         if (targetPlayer.isInHangarShipRoom)
                         {
                             targetPlayer = null;
-                            suspicionLevel = 60;
+                            suspicionLevel = maxSuspicionLevel / 100 * 60;
                             timeSinceLostPlayer = 0.0f;
                             LogIfDebugBuild($"JPOGTrex: TargetPlayer is inside the ship, stopping chase");
                             SwitchToBehaviourServerRpc((int)State.SearchingForPlayer);
@@ -327,7 +339,7 @@ namespace JPOGTrex {
                         {
                             targetPlayer = null;
                             isMovingTowardsLastKnownPosition = false;
-                            suspicionLevel = 60;
+                            suspicionLevel = maxSuspicionLevel / 100 * 60;
                             timeSinceLostPlayer = 0.0f;
                             LogIfDebugBuild($"JPOGTrex: TargetPlayer was too high to reach!");
                             SwitchToBehaviourServerRpc((int)State.SearchingForPlayer);
@@ -349,7 +361,7 @@ namespace JPOGTrex {
                     {
                         LogIfDebugBuild("JPOGTrex: Spent to long trying to reach last know position. returning to searching for player");
                         isMovingTowardsLastKnownPosition = false;
-                        suspicionLevel = 60;
+                        suspicionLevel = maxSuspicionLevel / 100 * 60;
                         timeSinceLostPlayer = 0.0f;
                         SwitchToBehaviourServerRpc((int)State.SearchingForPlayer);
                     }
@@ -360,7 +372,7 @@ namespace JPOGTrex {
                         if (!FoundClosestPlayerInRange())
                         {
                             LogIfDebugBuild("JPOGTrex: No players found. Return to searching for player.");
-                            suspicionLevel = 60;
+                            suspicionLevel = maxSuspicionLevel / 100 * 60;
                             StartSearch(transform.position);
                             SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
                             return;
@@ -369,7 +381,7 @@ namespace JPOGTrex {
                     if(targetPlayer == null && !isMovingTowardsLastKnownPosition)
                     {
                         LogIfDebugBuild("JPOGTrex: No players found in range. Return to searching for player.");
-                        suspicionLevel= 60;
+                        suspicionLevel= maxSuspicionLevel / 100 * 60;
                         SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
                     }
                     break;
@@ -397,7 +409,7 @@ namespace JPOGTrex {
                             if (targetPlayer.isInHangarShipRoom)
                             {
                                 targetPlayer = null;
-                                suspicionLevel = 60;
+                                suspicionLevel = maxSuspicionLevel / 100 * 60;
                                 timeSinceLostPlayer = 0.0f;
                                 LogIfDebugBuild($"JPOGTrex: TargetPlayer is inside the ship, stopping chase");
                                 SwitchToBehaviourServerRpc((int)State.SearchingForPlayer);
@@ -471,7 +483,7 @@ namespace JPOGTrex {
                     {
                         LogIfDebugBuild($"JPOGTrex: doneEating = [{doneEating}] || returning to SearchingForPlayer");
                         doneEating = false; 
-                        suspicionLevel = 20;
+                        suspicionLevel = maxSuspicionLevel / 100 * 20;
                         SwitchToBehaviourStateServerRpc((int)State.SearchingForPlayer);
                     }
                     break;
@@ -794,27 +806,6 @@ namespace JPOGTrex {
             DropCarriedBody();
         }
 
-        [ServerRpc(RequireOwnership = false)]
-        private void CheckAndDecreaseSuspicionServerRpc()
-        {
-            CheckAndDecreaseSuspicionClientRpc();
-        }
-
-        [ClientRpc]
-        private void CheckAndDecreaseSuspicionClientRpc()
-        {
-            CheckAndDecreaseSuspicion();
-        }
-
-        private void CheckAndDecreaseSuspicion()
-        {
-            if (timeSinceSeeingPlayerMove >= decreaseSuspicionTimer + suspicionDecreaseTimeInterval)
-            {
-                DecreaseSuspicionServerRpc();
-                decreaseRateSuspicion = timeSinceSeeingPlayerMove;
-            }
-        }
-
         //Methods & Logic
 
 
@@ -862,7 +853,7 @@ namespace JPOGTrex {
 
         private void CheckLineOfSightDuringChase()
         {
-            PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(60f, visionRangeChase, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
+            PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(visionRangeWidth, visionRangeChase, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
             if (allPlayersInLineOfSight != null)
             {
                 LogIfDebugBuild($"JPOGTrex: Checking LOS in chase. allPlayersInLineOfSight length: {allPlayersInLineOfSight.Length}");
@@ -897,19 +888,22 @@ namespace JPOGTrex {
         private void IncreaseSuspicion()
         {
             suspicionLevel = Mathf.Clamp(suspicionLevel + increasRateSuspicion, 0, maxSuspicionLevel);
-            decreaseRateSuspicion = 0;
             timeSinceSeeingPlayerMove = 0;
-            //LogIfDebugBuild($"JPOGTrex: Suspicion level increased. New value = [{suspicionLevel}]");
+            LogIfDebugBuild($"JPOGTrex: Suspicion level increased. New value = [{suspicionLevel}]");
         }
         private void DecreaseSuspicion()
         {
-            suspicionLevel = Mathf.Clamp(suspicionLevel - decreaseRateSuspicion, 0, maxSuspicionLevel);
-            //LogIfDebugBuild($"JPOGTrex: Suspicion level decreased. New value = [{suspicionLevel}]");
+            if(Time.time - lastSuspicionDecreaseTime >= decreaseSuspicionTimer)
+            {
+                suspicionLevel = Mathf.Clamp(suspicionLevel - decreaseRateSuspicion, 0, maxSuspicionLevel);
+                lastSuspicionDecreaseTime = Time.time;
+                LogIfDebugBuild($"JPOGTrex: Suspicion level decreased. New value = [{suspicionLevel}]");
+            }
         }
 
         private void CheckLineOfSight()
         {
-            PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(60f, visionRangeSearching, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
+            PlayerControllerB[] allPlayersInLineOfSight = GetAllPlayersInLineOfSight(visionRangeWidth, visionRangeSearching, eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
             if (allPlayersInLineOfSight != null)
             {
                 //LogIfDebugBuild($"JPOGTrex: allPlayersInLineOfSight length: {allPlayersInLineOfSight.Length}"); 
@@ -923,8 +917,10 @@ namespace JPOGTrex {
                         if (CheckIfPlayerIsmoving(playerControllerB))
                         {
                             IncreaseSuspicionServerRpc();
-                            //LogIfDebugBuild($"JPGOTrex: Saw player [{playerControllerB.playerClientId}] moving");
+                            LogIfDebugBuild($"JPGOTrex: Saw player [{playerControllerB.playerClientId}] moving");
                             movingPlayer = playerControllerB;
+                            timeSinceSeeingPlayerMove += Time.deltaTime;
+                            lastSuspicionDecreaseTime = Time.time; // Reset decrease time to prevent immediate decrease
 
                             //TODO add adrinaline effect to players that are seen moving
                             //TrexSeePlayerEffect();
