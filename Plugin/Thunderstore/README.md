@@ -26,7 +26,7 @@ JPOGTrex is a fully animated custom enemy that can spawn outside and will target
 	- The T-Rex should have around the same HP as a giant (hitboxes/colliders need some improvement).
 	- The T-Rex can be killed by Earth Leviathan.
 
-## Feedback 🗣️
+## Feedback 📢
 Feel free to leave feedback and/or bugs you encounter on the discord thread for JPOG T-Rex or by Creating a GitHub issue!  
 - [Lethal Company Modding discord](https://discord.com/channels/1168655651455639582/1267152262602555473):  
 	[Modding] > [mod-releases] > [JPOG T-Rex 🦖] 
@@ -62,3 +62,14 @@ All assets (model, textures, animations and some audio) are from the game:
 [Jurassic Park Operation Genesis](https://en.wikipedia.org/wiki/Jurassic_Park:_Operation_Genesis)  
 I also used some audio form the T-Rex from the game:
 [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/)
+
+## Credits 🗣️
+
+- [EvaisaDev](https://github.com/EvaisaDev) - [LethalLib](https://github.com/EvaisaDev/LethalLib)  
+- [Lordfirespeed](https://github.com/Lordfirespeed) - reference tcli usage in LethalLib  
+- [Xilophor](https://github.com/Xilophor) - csproj files taken from Xilo's [mod templates](https://github.com/Xilophor/Lethal-Company-Mod-Templates)  
+- [XuuXiao](https://github.com/XuuXiao/) - porting LC-ExampleEnemy for LC v50  
+- [nomnomab](https://github.com/nomnomab) - [Lethal Company Project Patcher](https://github.com/nomnomab/lc-project-patcher) - used for the Unity Project  
+- [AlbinoGeek](https://github.com/AlbinoGeek) - issue template  
+- [HENDRIX-ZT2 ](https://github.com/HENDRIX-ZT2) & [AdventureT](https://github.com/AdventureT) - creating the blender plugin: [jpog-blender](https://github.com/HENDRIX-ZT2/jpog-blender) that is able to read ".tmd" files from the game: [Jurassic Park Operation Genisis](https://en.wikipedia.org/wiki/Jurassic_Park:_Operation_Genesis)
+- [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/) - I use some of the sounds from their [T-Rex](https://youtu.be/VTaOiCKarqY?si=gmsnWuaOiKZl15iR)
