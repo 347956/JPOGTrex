@@ -1,9 +1,8 @@
 ## 1.1.0
 Mostly added new configurations and a fix for the suspicion meter of the T-Rex.
-
 - Suspicion:
 	- Fixed the T-Rex's suspicion meter. The T-Rex already had a suspicion meter but it would decrease it's suspicion level too early and fast.
--Configuration:
+- Configuration:
 	- New configurations have been added for the T-Rex's behavior:
 		- Vision Range length
 		- Vision Range Width
@@ -11,7 +10,7 @@ Mostly added new configurations and a fix for the suspicion meter of the T-Rex.
 		- Suspicion Increment
 		- Suspicion Decrement
 		- Suspicion Decrease Time
-
+		
 These changes should make the T-Rex less "blind" as the suspicion is no longer decreased too early after just increasing. The configurations will also help as the T-Rex's vision can now be adjusted for those who want it to be more "aggresive" or dangerous.
 
 **NOTE:** Feel free to create/open an issue on GitHub about problems you encounter or leave a comment in the JPOG-TRex thread on discord in case something isn't working / too buggy.
