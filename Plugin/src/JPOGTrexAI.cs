@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using GameNetcodeStuff;
@@ -161,7 +162,7 @@ namespace JPOGTrex {
             AssignConfigVariables();
             agent.stoppingDistance = 0f;
             base.Start();
-            attackRange = 10f;
+            attackRange = 8f;
             //SetBonesServerRpc();
             LogIfDebugBuild("JPOGTrex Spawned");
             timeSinceHittingLocalPlayer = 0;
@@ -232,6 +233,7 @@ namespace JPOGTrex {
                     {
                         StopAllCoroutines();
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [SearchingForPlayer]");
+                        movingTowardsTargetPlayer = false;
                         agent.speed = defaultSpeed;
                         agent.autoBraking = true;
                         SetWalkingAnimationServerRpc(agent.speed);
@@ -315,12 +317,14 @@ namespace JPOGTrex {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [ChasingPlayer]");
                         agent.speed = defaultSpeed * 2f;
                         previousState = State.ChasingPlayer;
+                        movingTowardsTargetPlayer = true;
                         SetWalkingAnimationServerRpc(agent.speed);
+                        //targetPlayer.JumpToFearLevel(0.5f);
                     }
                     if (targetPlayer != null)
                     {
                         SetDestinationToPosition(targetPlayer.transform.position);
-                        HandleBraking();
+                        //HandleBraking();
                         CheckForPlayersInRangeOfGrabAttackServerRpc();
                         if (targetPlayer.isInHangarShipRoom)
                         {
@@ -404,8 +408,8 @@ namespace JPOGTrex {
                         }
                         if (targetPlayer != null)
                         {
-                            SetDestinationToPosition(targetPlayer.transform.position);
-                            HandleBraking();
+                            //SetDestinationToPosition(targetPlayer.transform.position);
+                            //HandleBraking();
                             if (targetPlayer.isInHangarShipRoom)
                             {
                                 targetPlayer = null;
@@ -449,6 +453,7 @@ namespace JPOGTrex {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [GrabbingPlayer]");
                         agent.speed = 0;
                         previousState = State.GrabbingPlayer;
+                        movingTowardsTargetPlayer = false;
                         SetWalkingAnimationServerRpc(agent.speed);
                         //KillPlayerServerRpc((int)targetPlayer.playerClientId);
                         ShakingBodiesServerRpc();
@@ -1313,6 +1318,25 @@ namespace JPOGTrex {
             }
         }
 
+/*        public override void OnCollideWithEnemy(Collider other, EnemyAI collidedEnemy = null)
+        {
+            LogIfDebugBuild($"JPOGTrex: Collided with enemy [{collidedEnemy.name}]");
+            base.OnCollideWithEnemy(other, collidedEnemy);
+            if (!collidedEnemy.isEnemyDead && !InAttackOnEnemyLow) {
+                BeginAttackOnEnemyLow();
+                collidedEnemy.HitEnemy(10);
+            
+            }
+        }*/
+
+/*        private IEnumerator BeginAttackOnEnemyLow()
+        {
+            InAttackOnEnemyLow = true;
+            DoAnimationClientRpc("attackEnemyLow");
+            yield return new WaitForSeconds(1.2f);
+            InAttackOnEnemyLow = false;
+        }*/
+
         private void ShakkingBodies()
         {
             if (!shakingBoddies)
@@ -1568,7 +1592,8 @@ namespace JPOGTrex {
             }
             if (GameNetworkManager.Instance.localPlayerController == killPlayer)
             {
-                killPlayer.KillPlayer(Vector3.zero, spawnBody: true, CauseOfDeath.Mauling, 1);
+                int killAnimation = enemyRandom.Next(0, 2) == 0 ? 1 : 7;
+                killPlayer.KillPlayer(Vector3.zero, spawnBody: true, CauseOfDeath.Mauling, killAnimation);
             }
             float startTime = Time.timeSinceLevelLoad;
             yield return new WaitUntil(() => killPlayer.deadBody != null || Time.timeSinceLevelLoad - startTime > 2f);

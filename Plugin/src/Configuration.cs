@@ -13,7 +13,7 @@ namespace JPOGTrex.Configuration {
     public class PluginConfig : SyncedInstance<PluginConfig>
     {
         // For more info on custom configs, see https://lethal.wiki/dev/intermediate/custom-configs
-        public ConfigEntry<int> SpawnWeight;
+/*        public ConfigEntry<int> SpawnWeight;
         public ConfigEntry<int> SpawnWeightExperimentation;
         public ConfigEntry<int> SpawnWeightAssurance;
         public ConfigEntry<int> SpawnWeightVow;
@@ -26,7 +26,7 @@ namespace JPOGTrex.Configuration {
         public ConfigEntry<int> SpawnWeightArtifice;
         public ConfigEntry<int> SpawnWeightEmbrion;
         public ConfigEntry<int> SpawnWeightModded;
-        public ConfigEntry<bool> CustomSpawnweightPerLevel;
+        public ConfigEntry<bool> CustomSpawnweightPerLevel;*/
         public ConfigEntry<float> DefaultSpeed;
         public ConfigEntry<int> MaxTrexCount;
         public ConfigEntry<int> VisionRangeLength;
@@ -34,16 +34,18 @@ namespace JPOGTrex.Configuration {
         public ConfigEntry<float> SuspiciontDecreaseTime;
         public ConfigEntry<int> MaxSuspicionLevel;
 
+        public ConfigEntry <bool> EnableJPOGTrex;
         public ConfigEntry<int> SuspicionIncrement;
         public ConfigEntry<int> SuspicionDecrement;
+
+        public ConfigEntry<string> TrexRarity;
 
         //public ConfigEntry<int> PlayersToEat;
 
 
         private const string CATEGORY_GENERAL = "1. General";
         private const string CATEGORY_BEHAVIOR = "2. Behavior";
-        private const string CATEGORY_SPAWNING_GENERAL = "3. Spawning - General";
-        private const string CATEGORY_SPAWNING_MOONS = "4. Spawning - Moons";
+        private const string CATEGORY_SPAWNING_MOONS = "3. Spawning - Moons";
 
         [Conditional("DEBUG")]
         void LogIfDebugBuild(string text)
@@ -53,12 +55,22 @@ namespace JPOGTrex.Configuration {
 
         public PluginConfig(ConfigFile cfg)
         {
-            
+
+
             InitInstance(this);
 
-            MaxTrexCount = cfg.Bind(CATEGORY_SPAWNING_GENERAL, "Max T-Rex Count", 1, "Increasing this number makes it possible for more T-Rexes to spawn naturally.");
 
-            DefaultSpeed = cfg.Bind(CATEGORY_GENERAL, "Default speed", 6f, "The default speed of the T-Rex. Increasing the default speed will also increase the chasing speed e.g. default speed * 2 = chasing speed");
+            EnableJPOGTrex = cfg.Bind(CATEGORY_GENERAL, "Enable T-Rex", true, "Use this option to Enable/Disable the T-Rex being able to spawn in game.");
+
+            TrexRarity = cfg.Bind(CATEGORY_SPAWNING_MOONS,
+                                                "T-Rex | Spawn Weight.",
+                                                "Modded:20,ExperimentationLevel:20,AssuranceLevel:20,VowLevel:30,OffenseLevel:20,MarchLevel:30,RendLevel:10,DineLevel:10,TitanLevel:10,Adamance:20,Embrion:10,Artifice:40,Auralis:20",
+                                                "Spawn Weight of the T-Rex on all moons, Feel free to add any moon to the list, just follow the format (also needs LLL installed for LE moons to work with this config).\n" +
+                                                "Format Example: \"MyCustomLevel:20,OrionLevel:100,Etc:20,EtcTwo:20,EtcThree:20\"");
+
+            MaxTrexCount = cfg.Bind(CATEGORY_BEHAVIOR, "Max T-Rex Count", 1, "Increasing this number makes it possible for more T-Rexes to spawn naturally.");
+
+            DefaultSpeed = cfg.Bind(CATEGORY_BEHAVIOR, "Default speed", 6f, "The default speed of the T-Rex. Increasing the default speed will also increase the chasing speed e.g. default speed * 2 = chasing speed");
 
             /*            PlayersToEat = cfg.Bind("General", "Amount of players to eat until no longer the T-Rex is no longer hungry", 2, "When the T-Rex \"eats\" a player their body is gone/no longer teleportable, similar to a Forest Giant.\n" +
                             "After the T-Rex is no longer hungry it will drop the bodies of players in it's mouth");*/
@@ -78,7 +90,7 @@ namespace JPOGTrex.Configuration {
                 "e.g. 4 means the suspicion will go down by the set amount every 4 seconds since the T-Rex last spotted a player moving.");
 
 
-            SpawnWeight = cfg.Bind(CATEGORY_SPAWNING_GENERAL, "Spawn weight", 20,
+/*            SpawnWeight = cfg.Bind(CATEGORY_SPAWNING_GENERAL, "Spawn weight", 20,
                 "The spawn chance weight for JPOGTrex, relative to other existing enemies.\n" +
                 "Goes up from 0, lower is more rare, 100 and up is very common.");
 
@@ -131,7 +143,7 @@ namespace JPOGTrex.Configuration {
 
             SpawnWeightModded = cfg.Bind(CATEGORY_SPAWNING_MOONS, "Spawn weight modded Moons", 20,
                 "The spawn chance weight for JPOGTrex, relative to other existing enemies.\n" +
-                "Goes up from 0, lower is more rare, 100 and up is very common.");
+                "Goes up from 0, lower is more rare, 100 and up is very common.");*/
 
             ClearUnusedEntries(cfg);
         }
@@ -222,5 +234,6 @@ namespace JPOGTrex.Configuration {
         {
             RevertSync();
         }
+        
     }
 }

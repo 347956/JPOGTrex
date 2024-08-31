@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 406789317
+CRC: 1989585356
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 027acb79534768bd85002ac52962d6bd
+    Hash: 4497fcc8491789946c6484f37b30ca28
   TypeTreeHash:
     serializedVersion: 2
-    Hash: e7662096d08ebd8b79022dbd1b8cd9e0
+    Hash: 0031267cd74cdbf1c6bc5fa652448701
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 027acb79534768bd85002ac52962d6bd
+    Hash: 4497fcc8491789946c6484f37b30ca28
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -47,6 +47,10 @@ ClassTypes:
 - Class: 114
   Script: {fileID: 11500000, guid: 04f75356a7e9c978bddc7d568e58a50b, type: 3}
 - Class: 114
+  Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
+- Class: 114
   Script: {fileID: 11500000, guid: 3c36d0a92cbb1f26a39169ef0eae393a, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 6d7127b8f98ca8ec9896b384a71d39a2, type: 3}
@@ -79,6 +83,8 @@ SerializeReferenceClassIdentifiers:
   ClassName: EnemyBehaviourState
 - AssemblyName: Assembly-CSharp
   ClassName: NavSizeLimit
+- AssemblyName: Unity.Netcode.Components
+  ClassName: Unity.Netcode.Components.NetworkAnimator/TransitionStateinfo
 Assets:
 - Assets/ModAssets/JPOGTrex/Audio/Growl01/TrexGrowl01.wav
 - Assets/ModAssets/JPOGTrex/Materials/Trex_with_opacity.png
@@ -116,17 +122,18 @@ Assets:
 - Assets/ModAssets/JPOGTrex/Audio/Roar01/TrexRoar01-main.mp3
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Call_F01.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_Shake_Lp10.anim
+- Assets/ModAssets/JPOGTrex/Animations/TRex_Snap_Lo_Lp11.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Inj_Lp00.anim
 - Assets/ModAssets/JPOGTrex/Audio/Roar01/TrexRoar01.wav
 - Assets/ModAssets/JPOGTrex/Materials/Cleaned_Trex.png
 - Assets/ModAssets/JPOGTrex/Audio/TrexHurt.wav
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Chew_lp01.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Walk_lp00.anim
-- Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrex Video.webm
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Tail_Flck_Lp11.anim
 - Assets/ModAssets/JPOGTrex/JPOGTRexAnimator.controller
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Snap_Md_Lp11.anim
 - Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Snif_Lp01.anim
 - Assets/ModAssets/JPOGTrex/Audio/IdleBreath01.mp3
 - Assets/ModAssets/JPOGTrex/Audio/Growl01/TrexGrowl01-ending.mp3
+- Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrex.webm
 Dependencies: []

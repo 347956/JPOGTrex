@@ -1,3 +1,24 @@
+## 1.1.1
+JPOGTrex patched for v60/v62 (It was already working on v60/v62 but just to be sure).  
+A few fixes with the help of [Xu Xiaolan](https://thunderstore.io/c/lethal-company/p/XuXiaolan/)
+
+### Changes
+- The T-Rex getting stuck on terrain:
+	- The Nav Mesh Agent's radius has been reduced, this should make the T-Rex get stuck on terrain less often.
+- Slowing down when approaching the target player:
+	- The T-Rex now uses a "Network Transform" which should help it close in on players.
+- Configuration:
+	- Custom Spawn rates can now be set per moon including custom moons!
+	- This Requires [Lethal Level Loader](https://thunderstore.io/c/lethal-company/p/IAmBatby/LethalLevelLoader/) and can be configured the same way as you would for example: [TheGiantSpecimens](https://thunderstore.io/c/lethal-company/p/XuXiaolan/TheGiantSpecimens/).
+	- E.g. Setting the spawnweight for a custom level can by adding the level name to the list like this: ",Orion:20".
+- Terminal/Bestiary:
+	- You can now view info about the T-Rex in the terminal by typing "trex".
+	- A video is also played in the terminal.
+- Killing the player
+	- The T-Rex can now also snap the player in half (like the barber) when killing them with it's bite attack. 
+
+As always feel free to reach out if you encounter bugs or have suggestions.
+
 ## 1.1.0
 Mostly added new configurations and a fix for the suspicion meter of the T-Rex.
 - Suspicion:

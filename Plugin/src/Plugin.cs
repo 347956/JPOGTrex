@@ -6,6 +6,8 @@ using BepInEx.Logging;
 using System.IO;
 using JPOGTrex.Configuration;
 using System.Collections.Generic;
+using System.Linq;
+using static LethalLib.Modules.Levels;
 
 namespace JPOGTrex {
     [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
@@ -68,8 +70,8 @@ namespace JPOGTrex {
             NetworkPrefabs.RegisterNetworkPrefab(JPOGTrex.enemyPrefab);
             // For different ways of registering your enemy, see https://github.com/EvaisaDev/LethalLib/blob/main/LethalLib/Modules/Enemies.cs
             //Sets the spawn weight per level/moond accordingly if enabled, or uses the default spawnweight for all levels.
-
-            if (BoundConfig.CustomSpawnweightPerLevel.Value == true)
+            RegisterEnemyWithConfig(BoundConfig.EnableJPOGTrex.Value, BoundConfig.TrexRarity.Value, JPOGTrex, JPOGTrexTN, JPOGTrexTK);
+/*            if (BoundConfig.CustomSpawnweightPerLevel.Value == true)
             {
                 var JPOGTrexLevelRarities = GetVanillaLevelRarities();
                 var JPOGTrexCustomLevelRarities = new Dictionary<string, int>()
@@ -85,9 +87,9 @@ namespace JPOGTrex {
             {
                 Enemies.RegisterEnemy(JPOGTrex, BoundConfig.SpawnWeight.Value, Levels.LevelTypes.All, JPOGTrexTN, JPOGTrexTK);
                 Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID}: using default Spawn Weight(s).");
-            }
+            }*/
 
-            Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
+            Logger.LogInfo($"Plugin [{PluginInfo.PLUGIN_GUID}] is loaded!");
         }
 
         private static void InitializeNetworkBehaviours() {
@@ -105,23 +107,60 @@ namespace JPOGTrex {
                     }
                 }
             }
-        } 
-        private Dictionary<Levels.LevelTypes, int> GetVanillaLevelRarities()
+        }
+
+        private static void RegisterEnemyWithConfig(bool isnebabled, string configMoonRarity, EnemyType enemy, TerminalNode terminalNode, TerminalKeyword terminalKeyword)
         {
-            return new Dictionary<Levels.LevelTypes, int> {
-                        {Levels.LevelTypes.ExperimentationLevel, BoundConfig.SpawnWeightExperimentation.Value},
-                        {Levels.LevelTypes.AssuranceLevel, BoundConfig.SpawnWeightAssurance.Value},
-                        {Levels.LevelTypes.VowLevel, BoundConfig.SpawnWeightVow.Value},
-                        {Levels.LevelTypes.OffenseLevel, BoundConfig.SpawnWeightMarch.Value},
-                        {Levels.LevelTypes.MarchLevel, BoundConfig.SpawnWeightOffense.Value},
-                        {Levels.LevelTypes.RendLevel, BoundConfig.SpawnWeightRend.Value},
-                        {Levels.LevelTypes.DineLevel, BoundConfig.SpawnWeightDine.Value},
-                        {Levels.LevelTypes.TitanLevel, BoundConfig.SpawnWeightTitan.Value},
-                        {Levels.LevelTypes.AdamanceLevel, BoundConfig.SpawnWeightAdamance.Value},
-                        {Levels.LevelTypes.ArtificeLevel, BoundConfig.SpawnWeightArtifice.Value},
-                        {Levels.LevelTypes.EmbrionLevel, BoundConfig.SpawnWeightEmbrion.Value},
-                        {Levels.LevelTypes.Modded, BoundConfig.SpawnWeightModded.Value}
-            };
+            if (isnebabled)
+            {
+                Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID}: JPOGTrex is Enabled, setting up spawn weights");
+                (Dictionary<LevelTypes, int> spawnRateByLevelType, Dictionary<string, int> spawnRateByCustomLevelType) = ConfigParsing(configMoonRarity);
+                Enemies.RegisterEnemy(enemy, spawnRateByLevelType, spawnRateByCustomLevelType, terminalNode, terminalKeyword);
+            }
+            else
+            {
+                Enemies.RegisterEnemy(enemy, 0, LevelTypes.All, terminalNode, terminalKeyword);
+                Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID}: JPOGTrex is set as disabled");
+            }
+        }
+
+        private static (Dictionary<Levels.LevelTypes, int> spawnRateByLevelType, Dictionary<string, int> spawnRateByCustomLevelType) ConfigParsing(string configMoonRarity)
+        {
+            Dictionary<Levels.LevelTypes, int> spawnRateByLevelType = new Dictionary<Levels.LevelTypes, int>();
+            Dictionary<string, int> spawnRateByCustomLevelType = new Dictionary<string, int>();
+            foreach (string entry in configMoonRarity.Split(',').Select(s => s.Trim()))
+            {
+                string[] entryParts = entry.Split(':');
+
+                if (entryParts.Length != 2) continue;
+
+                string name = entryParts[0].ToLowerInvariant();
+                int spawnrate;
+
+                if (!int.TryParse(entryParts[1], out spawnrate)) continue;
+                if (name == "custom")
+                {
+                    name = "modded";
+                }
+                if (System.Enum.TryParse(name, true, out Levels.LevelTypes levelType))
+                {
+                    spawnRateByLevelType[levelType] = spawnrate;
+                }
+                else
+                {
+                    // Try appending "Level" to the name and re-attempt parsing
+                    string modifiedName = name + "Level";
+                    if (System.Enum.TryParse(modifiedName, true, out levelType))
+                    {
+                        spawnRateByLevelType[levelType] = spawnrate;
+                    }
+                    else
+                    {
+                        spawnRateByCustomLevelType[name] = spawnrate;
+                    }
+                }
+            }
+            return (spawnRateByLevelType, spawnRateByCustomLevelType);
         }
     }
 }
