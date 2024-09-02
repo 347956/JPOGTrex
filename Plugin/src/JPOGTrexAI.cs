@@ -74,6 +74,8 @@ namespace JPOGTrex {
         private int playersEaten = 0;
         private float stoppingThreshold = 9;
         private float lastSuspicionDecreaseTime;
+        private bool inAttackEnemyAnimation = false;
+        private EnemyAI? targetEntity = null;
 
         ThreatType IVisibleThreat.type => ThreatType.ForestGiant;
 
@@ -1290,6 +1292,88 @@ namespace JPOGTrex {
                 LogIfDebugBuild("JPOGTrex: Collision with Player!");
                 timeSinceHittingLocalPlayer = 0f;
                 playerControllerB.DamagePlayer(20);
+            }
+        }
+
+        public override void OnCollideWithEnemy(Collider other, EnemyAI collidedEnemy = null)
+        {
+            base.OnCollideWithEnemy(other, collidedEnemy);
+            if (isEnemyDead)
+            {
+                return;
+            }
+            if (!collidedEnemy.isEnemyDead && CheckIfInNotAnimation())
+            {
+                targetEntity = collidedEnemy;
+                LookAtTargetEntityServerRpc();
+                if (collidedEnemy.enemyType.SizeLimit == NavSizeLimit.SmallSpaces)
+                {
+                    StartCoroutine(AttackEnemyLow());
+                }
+                else if(collidedEnemy.enemyType.SizeLimit == NavSizeLimit.MediumSpaces)
+                {
+                    StartCoroutine(AttackEnemyHigh());
+                }
+                else
+                {
+                    StartCoroutine(AttackEnemyLow());
+                }
+            }
+        }
+
+        public bool CheckIfInNotAnimation()
+        {
+            if(!inGrabAttack && !inKillAnimation && !inEatingAnimation && !beginningGrab && !inAttackEnemyAnimation)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+
+        public IEnumerator AttackEnemyLow()
+        {
+            inAttackEnemyAnimation = true;
+            DoAnimationClientRpc("attackEnemyLow");
+            yield return new WaitForSeconds(1.2f);
+            if (targetEntity != null)
+            {
+                targetEntity.HitEnemy(20,null, true, -1);
+            }
+            inAttackEnemyAnimation = false;
+            yield break;
+        }
+        public IEnumerator AttackEnemyHigh()
+        {
+            inAttackEnemyAnimation = true;
+            DoAnimationClientRpc("attackEnemyHigh");
+            yield return new WaitForSeconds(1.2f);
+            if (targetEntity != null)
+            {
+                targetEntity.HitEnemy(20, null, true, -1);
+            }
+            inAttackEnemyAnimation = false;
+            yield break;
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        private void LookAtTargetEntityServerRpc()
+        {
+            LookAtTargetEntityClientRpc();
+        }
+        [ClientRpc]
+        private void LookAtTargetEntityClientRpc()
+        {
+            LookAtTargetEntity();
+        }
+        private void LookAtTargetEntity()
+        {
+            if (targetEntity != null)
+            {
+                turnCompass.LookAt(targetEntity.transform.position);
             }
         }
 
