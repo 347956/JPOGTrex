@@ -42,6 +42,8 @@ In the future I would like to make add more behaviours to the T-Rex, and make it
 ### Other projects 💭
 - Create a custom moon with JPOG assets.
 - Add other JPOG dinosaurs.
+	- [Stegosaurus](https://thunderstore.io/c/lethal-company/p/347956/JPOGStegosaurus/) ✅
+	- Raptor ▶️🤔
 
 ### TODO 🛠️
 - Make improvements to the audio (mainly the roars) ✅

@@ -1,3 +1,10 @@
+## 1.1.2
+
+The T-rex should now be able to attack enemies it collides with. Hopefully this makes it feel a bit more alive.
+- The anaimation played depends on the size of the enemy.
+
+
+
 ## 1.1.1
 JPOGTrex patched for v60/v62 (It was already working on v60/v62 but just to be sure).  
 A few fixes with the help of [Xu Xiaolan](https://thunderstore.io/c/lethal-company/p/XuXiaolan/)
