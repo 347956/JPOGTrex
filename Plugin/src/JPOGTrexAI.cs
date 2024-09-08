@@ -1341,7 +1341,8 @@ namespace JPOGTrex {
             yield return new WaitForSeconds(1.2f);
             if (targetEntity != null)
             {
-                targetEntity.HitEnemy(20,null, true, -1);
+                if(targetEntity.enemyType)
+                targetEntity.HitEnemy(15,null, true, -1);
             }
             inAttackEnemyAnimation = false;
             yield break;
@@ -1353,7 +1354,7 @@ namespace JPOGTrex {
             yield return new WaitForSeconds(1.2f);
             if (targetEntity != null)
             {
-                targetEntity.HitEnemy(20, null, true, -1);
+                targetEntity.HitEnemy(10, null, true, -1);
             }
             inAttackEnemyAnimation = false;
             yield break;
