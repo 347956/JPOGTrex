@@ -76,6 +76,8 @@ namespace JPOGTrex {
         private float lastSuspicionDecreaseTime;
         private bool inAttackEnemyAnimation = false;
         private EnemyAI? targetEntity = null;
+        private Vector3 previousForward;
+        private float turnSpeed;
 
         ThreatType IVisibleThreat.type => ThreatType.ForestGiant;
 
@@ -163,6 +165,7 @@ namespace JPOGTrex {
         {
             AssignConfigVariables();
             agent.stoppingDistance = 0f;
+            previousForward = turnCompass.forward;
             base.Start();
             attackRange = 8f;
             //SetBonesServerRpc();
@@ -179,6 +182,16 @@ namespace JPOGTrex {
         public override void Update() {
             base.Update();
             //UpdateMouthGripLocationToTargetBoneLocationClientRpc();
+            float angle = Vector3.SignedAngle(previousForward, turnCompass.forward, Vector3.up);
+
+            // Normalize the angle to get a turn value between -1 and 1
+            turnSpeed = Mathf.Clamp(angle / 90.0f, -1.0f, 1.0f);  // Assuming 90 degrees is max turn
+
+            // Store the current forward direction for the next frame
+            previousForward = turnCompass.forward;
+
+            // Pass this to the Animator
+            creatureAnimator.SetFloat("turn", turnSpeed);
             if (isEnemyDead) {
                 // For some weird reason I can't get an RPC to get called from HitEnemy() (works from other methods), so we do this workaround. We just want the enemy to stop playing the song.
                 if (!isDeadAnimationDone) {
@@ -1287,7 +1300,7 @@ namespace JPOGTrex {
                 return;
             }
             PlayerControllerB playerControllerB = MeetsStandardPlayerCollisionConditions(other);
-            if (playerControllerB != null)
+            if (playerControllerB != null && !playerControllerB.isInHangarShipRoom)
             {
                 LogIfDebugBuild("JPOGTrex: Collision with Player!");
                 timeSinceHittingLocalPlayer = 0f;
@@ -1705,6 +1718,13 @@ namespace JPOGTrex {
             inKillAnimation = false;
             killPlayerCoroutine = null;
             yield break;
+        }
+
+
+        //Method that is meant to stop the T-Rex from sticking too close to the ship.
+        private void StopCampingTheShip()
+        {
+
         }
     }
 }

@@ -570,6 +570,16 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1048170620940447292, guid: 2da7a4237e5c30e4ab083e442165fd14,
+        type: 3}
+      propertyPath: m_Layer
+      value: 19
+      objectReference: {fileID: 0}
+    - target: {fileID: 1048170620940447292, guid: 2da7a4237e5c30e4ab083e442165fd14,
+        type: 3}
+      propertyPath: m_TagString
+      value: Enemy
+      objectReference: {fileID: 0}
     - target: {fileID: 3735662421254837734, guid: 2da7a4237e5c30e4ab083e442165fd14,
         type: 3}
       propertyPath: GlobalObjectIdHash
