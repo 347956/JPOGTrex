@@ -1,3 +1,11 @@
+## 1.1.3
+Small Update.
+
+- Update to Audio. 
+	- The T-Rex's roars can no longer be heard inside.
+- Updated NavMeshAgent
+	- Hopefully this makes the navigation of the T-Rex better and also helps it not go to / spawn on places it shouldn't
+
 ## 1.1.2
 
 The T-rex should now be able to attack enemies it collides with. Hopefully this makes it feel a bit more alive and reactive to it's environment.

@@ -1,15 +1,15 @@
 ManifestFileVersion: 0
-CRC: 430803757
+CRC: 2460926979
 Hashes:
   AssetFileHash:
     serializedVersion: 2
-    Hash: 50d9e4badfcbc73148cbe7e62fbd576a
+    Hash: 80713e93853622cdea7e1d4200f885aa
   TypeTreeHash:
     serializedVersion: 2
-    Hash: c7416f3286bbf8d4cb844b819cae8bad
+    Hash: d55890e7249cd587a2a38f20cb3d12c2
   IncrementalBuildHash:
     serializedVersion: 2
-    Hash: 50d9e4badfcbc73148cbe7e62fbd576a
+    Hash: 80713e93853622cdea7e1d4200f885aa
 HashAppended: 0
 ClassTypes:
 - Class: 1
@@ -30,8 +30,6 @@ ClassTypes:
   Script: {instanceID: 0}
 - Class: 54
   Script: {instanceID: 0}
-- Class: 64
-  Script: {instanceID: 0}
 - Class: 65
   Script: {instanceID: 0}
 - Class: 74
@@ -45,25 +43,25 @@ ClassTypes:
 - Class: 95
   Script: {instanceID: 0}
 - Class: 114
-  Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
-- Class: 114
-  Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
-- Class: 114
-  Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
-- Class: 114
-  Script: {fileID: -1251017026, guid: 152463199d603fb44bfee37a360240d0, type: 3}
-- Class: 114
-  Script: {fileID: 11500000, guid: d3cecf05b78b173605122a700874719c, type: 3}
+  Script: {fileID: 11500000, guid: 65d3fcb39dd67306e9bb17a603308070, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 04f75356a7e9c978bddc7d568e58a50b, type: 3}
 - Class: 114
-  Script: {fileID: 11500000, guid: 65d3fcb39dd67306e9bb17a603308070, type: 3}
+  Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 3c36d0a92cbb1f26a39169ef0eae393a, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 6d7127b8f98ca8ec9896b384a71d39a2, type: 3}
 - Class: 114
   Script: {fileID: 11500000, guid: 0e80ae96b3eb9177eea5c8f9dadbcda1, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
+- Class: 114
+  Script: {fileID: 11500000, guid: d3cecf05b78b173605122a700874719c, type: 3}
+- Class: 114
+  Script: {fileID: -1251017026, guid: 152463199d603fb44bfee37a360240d0, type: 3}
 - Class: 115
   Script: {instanceID: 0}
 - Class: 137
@@ -88,54 +86,8 @@ SerializeReferenceClassIdentifiers:
 - AssemblyName: Unity.Netcode.Components
   ClassName: Unity.Netcode.Components.NetworkAnimator/TransitionStateinfo
 Assets:
-- Assets/ModAssets/JPOGTrex/Audio/Growl01/TrexGrowl01.wav
-- Assets/ModAssets/JPOGTrex/Materials/Trex_with_opacity.png
-- Assets/ModAssets/JPOGTrex/Audio/TrexDeath.wav
-- Assets/ModAssets/JPOGTrex/Materials/render.png
-- Assets/ModAssets/JPOGTrex/Materials/MapDotRed.mat
-- Assets/ModAssets/JPOGTrex/Audio/TrexGrowl02.wav
-- Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrexTK.asset
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_A11.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Run_lp00.anim
-- Assets/ModAssets/JPOGTrex/Audio/EatingPlayer01.mp3
-- Assets/ModAssets/JPOGTrex/Audio/Growl01/TrexGrowl01-main.mp3
-- Assets/ModAssets/JPOGTrex/Audio/shaking01.mp3
-- Assets/ModAssets/JPOGTrex/Audio/Sniff01.mp3
-- Assets/ModAssets/JPOGTrex/Models/JPOG-TrexV2.fbx
-- Assets/ModAssets/JPOGTrex/Audio/Bite01.mp3
-- Assets/ModAssets/JPOGTrex/Materials/TrexMaterial.mat
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Hit_Lt01.anim
-- Assets/ModAssets/JPOGTrex/Materials/Trex.png
-- Assets/ModAssets/JPOGTrex/Materials/Trex_opa.png
-- Assets/ModAssets/JPOGTrex/Audio/Damage01.mp3
-- Assets/ModAssets/JPOGTrex/Materials/JPOGTrex.mat
-- Assets/ModAssets/JPOGTrex/Audio/IdleSound01.mp3
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Call_01_lp11.anim
-- Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrexTN.asset
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Eat_lo_lp01.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Call_02_lp11.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_brth_Lp00.anim
 - Assets/ModAssets/JPOGTrex/JPOGTrexObj.asset
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Snz_Lp01.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_Swal_Ed11.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_St11.anim
-- Assets/ModAssets/JPOGTrex/Audio/Roar01/TrexRoar01-windup.mp3
-- Assets/ModAssets/JPOGTrex/Audio/TrexStep.wav
-- Assets/ModAssets/JPOGTrex/Audio/Roar01/TrexRoar01-main.mp3
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Call_F01.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Grab_Shake_Lp10.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Snap_Lo_Lp11.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Inj_Lp00.anim
-- Assets/ModAssets/JPOGTrex/Audio/Roar01/TrexRoar01.wav
-- Assets/ModAssets/JPOGTrex/Materials/Cleaned_Trex.png
-- Assets/ModAssets/JPOGTrex/Audio/TrexHurt.wav
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Chew_lp01.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Walk_lp00.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Tail_Flck_Lp11.anim
-- Assets/ModAssets/JPOGTrex/JPOGTRexAnimator.controller
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Snap_Md_Lp11.anim
-- Assets/ModAssets/JPOGTrex/Animations/TRex_Idle_Snif_Lp01.anim
-- Assets/ModAssets/JPOGTrex/Audio/IdleBreath01.mp3
-- Assets/ModAssets/JPOGTrex/Audio/Growl01/TrexGrowl01-ending.mp3
+- Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrexTK.asset
+- Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrexTN.asset
 - Assets/ModAssets/JPOGTrex/Bestiary/JPOGTrex.webm
 Dependencies: []

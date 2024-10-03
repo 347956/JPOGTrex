@@ -137,12 +137,9 @@ GameObject:
   m_Component:
   - component: {fileID: 5751709844823945800}
   - component: {fileID: 1679743477286694673}
-  - component: {fileID: 2221189159072632161}
-  - component: {fileID: 292638835595835721}
-  - component: {fileID: 8396484311444440074}
-  m_Layer: 0
+  m_Layer: 19
   m_Name: Trex_MESH
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -249,70 +246,6 @@ SkinnedMeshRenderer:
     m_Center: {x: -0.027712716, y: -0.00055747293, z: 0.0151015}
     m_Extent: {x: 0.02580207, y: 0.014328919, z: 0.070319034}
   m_DirtyAABB: 0
---- !u!64 &2221189159072632161
-MeshCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1048170620940447292}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 5
-  m_Convex: 1
-  m_CookingOptions: 30
-  m_Mesh: {fileID: -2613015149221769188, guid: a85b2da1a5f97a546ab1c330a1b225eb, type: 3}
---- !u!54 &292638835595835721
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1048170620940447292}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 1
---- !u!114 &8396484311444440074
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1048170620940447292}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6d7127b8f98ca8ec9896b384a71d39a2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  mainScript: {fileID: 8974319028779878893}
-  canCollideWithEnemies: 1
-  onlyCollideWhenGrounded: 0
 --- !u!1 &1310315709624263881
 GameObject:
   m_ObjectHideFlags: 0
@@ -1011,7 +944,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &4271586738414679116
 Transform:
   m_ObjectHideFlags: 0
@@ -1508,7 +1441,7 @@ NavMeshAgent:
   m_AutoRepath: 1
   m_Height: 15
   m_BaseOffset: 0
-  m_WalkableMask: 799
+  m_WalkableMask: 527
   m_ObstacleAvoidanceType: 4
 --- !u!114 &8974319028779878893
 MonoBehaviour:

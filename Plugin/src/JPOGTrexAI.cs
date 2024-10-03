@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using GameNetcodeStuff;
@@ -165,7 +164,6 @@ namespace JPOGTrex {
         {
             AssignConfigVariables();
             agent.stoppingDistance = 0f;
-            previousForward = turnCompass.forward;
             base.Start();
             attackRange = 8f;
             //SetBonesServerRpc();
@@ -181,17 +179,6 @@ namespace JPOGTrex {
 
         public override void Update() {
             base.Update();
-            //UpdateMouthGripLocationToTargetBoneLocationClientRpc();
-            float angle = Vector3.SignedAngle(previousForward, turnCompass.forward, Vector3.up);
-
-            // Normalize the angle to get a turn value between -1 and 1
-            turnSpeed = Mathf.Clamp(angle / 90.0f, -1.0f, 1.0f);  // Assuming 90 degrees is max turn
-
-            // Store the current forward direction for the next frame
-            previousForward = turnCompass.forward;
-
-            // Pass this to the Animator
-            creatureAnimator.SetFloat("turn", turnSpeed);
             if (isEnemyDead) {
                 // For some weird reason I can't get an RPC to get called from HitEnemy() (works from other methods), so we do this workaround. We just want the enemy to stop playing the song.
                 if (!isDeadAnimationDone) {
@@ -1718,13 +1705,6 @@ namespace JPOGTrex {
             inKillAnimation = false;
             killPlayerCoroutine = null;
             yield break;
-        }
-
-
-        //Method that is meant to stop the T-Rex from sticking too close to the ship.
-        private void StopCampingTheShip()
-        {
-
         }
     }
 }
