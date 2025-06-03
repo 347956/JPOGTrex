@@ -1706,5 +1706,15 @@ namespace JPOGTrex {
             killPlayerCoroutine = null;
             yield break;
         }
+
+        public GrabbableObject GetHeldObject()
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public bool IsThreatDead()
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }
