@@ -17,6 +17,10 @@ namespace JPOGTrex {
         internal static PluginConfig BoundConfig { get; private set; } = null!;
         public static AssetBundle? ModAssets;
 
+        #if (UseDusk == true)
+            public static DuskMod Mod { get; private set; } = null!;
+        #endif
+
         private void Awake() {
             Logger = base.Logger;
 

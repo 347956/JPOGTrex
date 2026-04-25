@@ -1,3 +1,7 @@
+## 1.1.5
+Sorry this took a bit too long.
+Fixed the T-Rex to work for V73.
+
 ## 1.1.4
 Fixed the T-Rex to work for V70.
 
