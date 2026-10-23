@@ -27,6 +27,7 @@ namespace JPOGTrex
         public bool HasSearchTimedOut => TimeSinceLostPlayer >= maxSearchTime;
         public bool HasBeenUnreachableTooLong => unreachableSince >= 0f && Time.time - unreachableSince >= maxUnreachableTime;
         public int VisionRangeChase => visionRangeChase;
+        public float AttackRange => attackRange;
 
         public TrexTargetingHelper(JPOGTrexAI trexAI)
         {

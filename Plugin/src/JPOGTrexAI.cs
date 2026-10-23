@@ -26,6 +26,7 @@ namespace JPOGTrex {
         internal TrexGrabHelper Grab { get; private set; } = null!;
         internal TrexFeedingHelper Feeding { get; private set; } = null!;
         internal TrexEnemyAttackHelper EnemyAttack { get; private set; } = null!;
+        internal TrexChaseHelper Chase { get; private set; } = null!;
         internal System.Random EnemyRandom { get; private set; } = null!;
 
         //Every client checks if its own player is seen, so the host's vision settings are shared with everyone
@@ -132,6 +133,7 @@ namespace JPOGTrex {
             Grab = new TrexGrabHelper(this);
             Feeding = new TrexFeedingHelper(this);
             EnemyAttack = new TrexEnemyAttackHelper(this);
+            Chase = new TrexChaseHelper(this);
         }
 
         private void AssignConfigVariables()
@@ -144,6 +146,7 @@ namespace JPOGTrex {
                 config.SuspicionDecrement.Value,
                 config.SuspiciontDecreaseTime.Value);
             Targeting.Configure(VisionRangeLength - 20);
+            Chase.Configure(defaultSpeed * 2f);
         }
 
         public override void OnNetworkSpawn()
@@ -219,6 +222,11 @@ namespace JPOGTrex {
                 wasStunned = false;
                 agent.speed = speedBeforeStun;
                 SetWalkingAnimationServerRpc(agent.speed);
+            }
+            //Steering runs every frame while chasing instead of on the AI interval, so the T-rex doesn't head for an outdated position
+            if (state == (int)State.ChasingPlayer && !wasStunned)
+            {
+                Chase.Tick();
             }
         }
 
@@ -310,10 +318,12 @@ namespace JPOGTrex {
                         movingTowardsTargetPlayer = true;
                         SetWalkingAnimationServerRpc(agent.speed);
                         Targeting.ResetLostPlayer();
+                        //The chase helper slows the T-rex down near the target instead, braking makes it slow down far too early
+                        agent.autoBraking = false;
+                        Chase.Reset();
                     }
                     if (targetPlayer != null)
                     {
-                        SetDestinationToPosition(targetPlayer.transform.position);
                         Targeting.UpdateUnreachableTimer();
                         if (Targeting.IsInGrabRange())
                         {
@@ -372,6 +382,12 @@ namespace JPOGTrex {
                     {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [GrabPlayer]");
                         previousState = State.GrabPlayer;
+                        //Brake towards the target during the bite so the T-rex doesn't run past it
+                        agent.autoBraking = true;
+                        if (targetPlayer != null)
+                        {
+                            SetDestinationToPosition(targetPlayer.transform.position);
+                        }
                         if (targetPlayer != null && targetPlayer.isInHangarShipRoom)
                         {
                             LogIfDebugBuild("JPOGTrex: TargetPlayer is inside the ship, stopping chase");
