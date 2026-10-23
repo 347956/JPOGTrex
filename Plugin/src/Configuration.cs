@@ -28,24 +28,22 @@ namespace JPOGTrex.Configuration {
         public ConfigEntry<int> SpawnWeightModded;
         public ConfigEntry<bool> CustomSpawnweightPerLevel;*/
         public ConfigEntry<float> DefaultSpeed;
-        public ConfigEntry<int> MaxTrexCount;
         public ConfigEntry<int> VisionRangeLength;
         public ConfigEntry<int> VisionRangeWidth;
         public ConfigEntry<float> SuspiciontDecreaseTime;
         public ConfigEntry<int> MaxSuspicionLevel;
 
-        public ConfigEntry <bool> EnableJPOGTrex;
         public ConfigEntry<int> SuspicionIncrement;
         public ConfigEntry<int> SuspicionDecrement;
 
-        public ConfigEntry<string> TrexRarity;
+        //public ConfigEntry<string> TrexRarity;
 
         //public ConfigEntry<int> PlayersToEat;
 
 
-        private const string CATEGORY_GENERAL = "1. General";
-        private const string CATEGORY_BEHAVIOR = "2. Behavior";
-        private const string CATEGORY_SPAWNING_MOONS = "3. Spawning - Moons";
+        //private const string CATEGORY_GENERAL = "1. General";
+        private const string CATEGORY_BEHAVIOR = "Behavior";
+        //private const string CATEGORY_SPAWNING_MOONS = "3. Spawning - Moons";
 
         [Conditional("DEBUG")]
         void LogIfDebugBuild(string text)
@@ -59,16 +57,11 @@ namespace JPOGTrex.Configuration {
 
             InitInstance(this);
 
-
-            EnableJPOGTrex = cfg.Bind(CATEGORY_GENERAL, "Enable T-Rex", true, "Use this option to Enable/Disable the T-Rex being able to spawn in game.");
-
-            TrexRarity = cfg.Bind(CATEGORY_SPAWNING_MOONS,
-                                                "T-Rex | Spawn Weight.",
-                                                "Modded:20,ExperimentationLevel:20,AssuranceLevel:20,VowLevel:30,OffenseLevel:20,MarchLevel:30,RendLevel:10,DineLevel:10,TitanLevel:10,Adamance:20,Embrion:10,Artifice:40,Auralis:20",
-                                                "Spawn Weight of the T-Rex on all moons, Feel free to add any moon to the list, just follow the format (also needs LLL installed for LE moons to work with this config).\n" +
-                                                "Format Example: \"MyCustomLevel:20,OrionLevel:100,Etc:20,EtcTwo:20,EtcThree:20\"");
-
-            MaxTrexCount = cfg.Bind(CATEGORY_BEHAVIOR, "Max T-Rex Count", 1, "Increasing this number makes it possible for more T-Rexes to spawn naturally.");
+            //TrexRarity = cfg.Bind(CATEGORY_SPAWNING_MOONS,
+            //    "T-Rex | Spawn Weight.",
+            //    "Modded:20,ExperimentationLevel:20,AssuranceLevel:20,VowLevel:30,OffenseLevel:20,MarchLevel:30,RendLevel:10,DineLevel:10,TitanLevel:10,Adamance:20,Embrion:10,Artifice:40,Auralis:20",
+            //    "Spawn Weight of the T-Rex on all moons, Feel free to add any moon to the list, just follow the format (also needs LLL installed for LE moons to work with this config).\n" +
+            //                                    "Format Example: \"MyCustomLevel:20,OrionLevel:100,Etc:20,EtcTwo:20,EtcThree:20\"");
 
             DefaultSpeed = cfg.Bind(CATEGORY_BEHAVIOR, "Default speed", 6f, "The default speed of the T-Rex. Increasing the default speed will also increase the chasing speed e.g. default speed * 2 = chasing speed");
 
@@ -178,7 +171,6 @@ namespace JPOGTrex.Configuration {
             try
             {
                 stream.WriteValueSafe(in value, default);
-                stream.WriteBytesSafe(array);
 
                 MessageManager.SendNamedMessage("ModName_OnReceiveConfigSync", clientId, stream);
             }
