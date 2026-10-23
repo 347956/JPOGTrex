@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 
 namespace JPOGTrex
@@ -21,6 +22,7 @@ namespace JPOGTrex
         public bool IsEating { get; private set; }
         public bool IsHungry { get; private set; } = true;
         public int PlayersEaten { get; private set; }
+        public bool HasBodyInMouth => carryingBodies.Exists(IsStillInMouth);
 
         public TrexFeedingHelper(JPOGTrexAI trexAI)
         {
@@ -91,6 +93,8 @@ namespace JPOGTrex
             killedPlayerBody.attachedLimb = killedPlayerBody.bodyParts[5];
             killedPlayerBody.matchPositionExactly = true;
             killedPlayerBody.MakeCorpseBloody();
+            //Same as vanilla enemies, this stops the ship teleporter from taking the body out of the mouth
+            SetHeldByEnemy(killedPlayerBody, true);
 
             //The T-rex Should be able to multikill so all bodies it grabs are added to the list
             carryingBodies.Add(killedPlayerBody);
@@ -103,7 +107,11 @@ namespace JPOGTrex
             //All grabbed bodies should be dropped by the Trex
             foreach (var carryingBody in carryingBodies)
             {
-                if (carryingBody == null)
+                if (carryingBody != null)
+                {
+                    SetHeldByEnemy(carryingBody, false);
+                }
+                if (!IsStillInMouth(carryingBody))
                 {
                     continue;
                 }
@@ -113,6 +121,20 @@ namespace JPOGTrex
                 carryingBody.matchPositionExactly = false;
             }
             carryingBodies.Clear();
+        }
+
+        //A body can leave the mouth without us knowing, e.g. when it gets teleported to the ship
+        private bool IsStillInMouth([NotNullWhen(true)] DeadBodyInfo? body)
+        {
+            return body != null && !body.deactivated && body.attachedTo == trexAI.mouthGrip;
+        }
+
+        private void SetHeldByEnemy(DeadBodyInfo body, bool heldByEnemy)
+        {
+            if (body.grabBodyObject != null)
+            {
+                body.grabBodyObject.isHeldByEnemy = heldByEnemy;
+            }
         }
 
         private IEnumerator ShakeGrabbedBody()
@@ -130,8 +152,13 @@ namespace JPOGTrex
             IsEating = false;
             foreach (var carryingBody in carryingBodies)
             {
-                if (carryingBody == null)
+                if (carryingBody != null)
                 {
+                    SetHeldByEnemy(carryingBody, false);
+                }
+                if (!IsStillInMouth(carryingBody))
+                {
+                    LogIfDebugBuild("JPOGTrex: Body is no longer in the mouth, skipping it");
                     continue;
                 }
                 LogIfDebugBuild($"JPOGTrex: Deactivating body = [{carryingBody.playerObjectId}]");

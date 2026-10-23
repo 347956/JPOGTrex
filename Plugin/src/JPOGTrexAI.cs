@@ -405,16 +405,20 @@ namespace JPOGTrex {
                         Feeding.BeginShakeLocal();
                         ShakingBodiesServerRpc();
                     }
-                    if (!Feeding.IsShaking && Feeding.IsHungry)
+                    if (!Feeding.IsShaking)
                     {
-                        LogIfDebugBuild("JPOGTrex: Done shaking, switching to eat body");
-                        SwitchToBehaviourState((int)State.EatingPlayer);
-                    }
-                    else if (!Feeding.IsShaking && !Feeding.IsHungry)
-                    {
-                        LogIfDebugBuild("JPOGTrex: Done shaking, not hungry, dropping body");
-                        DropcarriedBodyServerRpc();
-                        SwitchToBehaviourState((int)State.SearchingForPlayer);
+                        if (Feeding.IsHungry && Feeding.HasBodyInMouth)
+                        {
+                            LogIfDebugBuild("JPOGTrex: Done shaking, switching to eat body");
+                            SwitchToBehaviourState((int)State.EatingPlayer);
+                        }
+                        else
+                        {
+                            //Not hungry, or the body left the mouth (e.g. teleported), so there is nothing to eat
+                            LogIfDebugBuild($"JPOGTrex: Done shaking, not eating || isHungry = [{Feeding.IsHungry}] || hasBodyInMouth = [{Feeding.HasBodyInMouth}]");
+                            DropcarriedBodyServerRpc();
+                            SwitchToBehaviourState((int)State.SearchingForPlayer);
+                        }
                     }
                     break;
 
@@ -697,6 +701,8 @@ namespace JPOGTrex {
             LogIfDebugBuild("JPOGTrex: T-rex has been killed");
             // We need to stop our coroutines (including the search), because the game does not do that by default.
             StopAllCoroutines();
+            //Release any bodies so they can be picked up or teleported again
+            Feeding.DropCarriedBodies();
             if (IsOwner)
             {
                 SetWalkingAnimationServerRpc(0f);
