@@ -13,6 +13,8 @@ namespace JPOGTrex
         private readonly float attackRange = 8f;
         //How far above the T-rex's feet a player can be and still get bitten
         private readonly float maxBiteHeight = 6f;
+        //How far below the T-rex's feet a player can be and still get bitten
+        private readonly float maxBiteDepth = 2f;
         private readonly float maxSearchTime = 20.0f;
         //Big enough to still find the navmesh below a jumping player, too small for a player flying with a jetpack
         private readonly float navMeshSnapRadius = 3f;
@@ -63,15 +65,22 @@ namespace JPOGTrex
         //A player can be reached if the T-rex can bite them from where it stands, or walk to them over the navmesh
         public bool IsPlayerReachable(PlayerControllerB player)
         {
-            if (IsWithinBiteReach(player))
-            {
-                return true;
-            }
+            return IsWithinBiteReach(player) || IsReachableByPath(player);
+        }
+
+        public bool IsReachableByPath(PlayerControllerB player)
+        {
             if (!NavMesh.SamplePosition(player.transform.position, out NavMeshHit navMeshHit, navMeshSnapRadius, trexAI.agent.areaMask))
             {
                 return false;
             }
             return trexAI.agent.CalculatePath(navMeshHit.position, path) && path.status == NavMeshPathStatus.PathComplete;
+        }
+
+        //For players that weren't the target yet, e.g. the last player seen moving, who may have died or gone inside since then
+        public bool IsValidNewTarget(PlayerControllerB player)
+        {
+            return trexAI.PlayerIsTargetable(player, false) && !player.isInHangarShipRoom && IsPlayerReachable(player);
         }
 
         //Tracks how long the target has been unreachable without a break, so a short jump never ends a chase
@@ -92,7 +101,8 @@ namespace JPOGTrex
         private bool IsWithinBiteReach(PlayerControllerB player)
         {
             float heightAboveTrex = player.transform.position.y - trexAI.transform.position.y;
-            return heightAboveTrex <= maxBiteHeight && Vector3.Distance(trexAI.transform.position, player.transform.position) <= attackRange;
+            return heightAboveTrex <= maxBiteHeight && heightAboveTrex >= -maxBiteDepth
+                && Vector3.Distance(trexAI.transform.position, player.transform.position) <= attackRange;
         }
 
         public bool FoundClosestPlayerInRange(float range = 15f, float senseRange = 5f)

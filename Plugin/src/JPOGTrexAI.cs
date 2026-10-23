@@ -43,6 +43,8 @@ namespace JPOGTrex {
         private bool isRoaringStarted;
         private bool isSniffingStarted;
         private bool sniffing;
+        private Coroutine? sniffCoroutine;
+        private Coroutine? roarCoroutine;
         private float previousSpeed;
         private bool wasStunned;
         private float speedBeforeStun;
@@ -242,15 +244,22 @@ namespace JPOGTrex {
                 case (int)State.SearchingForPlayer:
                     if (previousState != State.SearchingForPlayer)
                     {
-                        StopAllCoroutines();
+                        //Only stop our own sniff/roar coroutines, stopping all of them would leave the helpers' flags stuck
+                        StopSniffAndRoar();
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [SearchingForPlayer]");
                         movingTowardsTargetPlayer = false;
                         Targeting.ResetLostPlayer();
+                        Grab.ResetMisses();
                         agent.speed = defaultSpeed;
                         agent.autoBraking = true;
                         SetWalkingAnimationServerRpc(agent.speed);
+                        StopSearch(currentSearch);
                         StartSearch(transform.position);
                         previousState = State.SearchingForPlayer;
+                    }
+                    if (HandleBodyStillInMouth())
+                    {
+                        break;
                     }
                     if (Targeting.FoundClosestPlayerInRange())
                     {
@@ -260,7 +269,7 @@ namespace JPOGTrex {
                         break;
                     }
                     Suspicion.DecreaseSuspicion();
-                    if (Suspicion.TryTakeMovingPlayer(out PlayerControllerB movingPlayer) && Targeting.IsPlayerReachable(movingPlayer))
+                    if (Suspicion.TryTakeMovingPlayer(out PlayerControllerB movingPlayer) && Targeting.IsValidNewTarget(movingPlayer))
                     {
                         targetPlayer = movingPlayer;
                         StopSearch(currentSearch);
@@ -275,7 +284,7 @@ namespace JPOGTrex {
                         agent.speed = 2f;
                         sniffing = true;
                         SetWalkingAnimationServerRpc(agent.speed);
-                        StartCoroutine(FoundPlayer());
+                        sniffCoroutine = StartCoroutine(FoundPlayer());
                         isSniffingStarted = true;
                         previousState = State.SpottedPlayer;
                     }
@@ -299,7 +308,7 @@ namespace JPOGTrex {
                     {
                         roaring = true;
                         LogIfDebugBuild("JPOGTrex: Roaring at Player!");
-                        StartCoroutine(BeginChase(EnemyRandom.Next(1, 4)));
+                        roarCoroutine = StartCoroutine(BeginChase(EnemyRandom.Next(1, 4)));
                         isRoaringStarted = true;
                     }
                     if (roaring == false)
@@ -322,10 +331,14 @@ namespace JPOGTrex {
                         agent.autoBraking = false;
                         Chase.Reset();
                     }
+                    if (HandleBodyStillInMouth())
+                    {
+                        break;
+                    }
                     if (targetPlayer != null)
                     {
                         Targeting.UpdateUnreachableTimer();
-                        if (Targeting.IsInGrabRange())
+                        if (Targeting.IsInGrabRange() && Grab.CanGrab)
                         {
                             SwitchToBehaviourState((int)State.GrabPlayer);
                             break;
@@ -394,10 +407,7 @@ namespace JPOGTrex {
                             StopChase();
                             break;
                         }
-                        if (timeSinceHittingLocalPlayer >= 4f)
-                        {
-                            Grab.StartGrab();
-                        }
+                        Grab.StartGrab();
                     }
                     if (!Grab.BeginningGrab)
                     {
@@ -410,6 +420,14 @@ namespace JPOGTrex {
                         }
                         else if (!Grab.InGrabAttack)
                         {
+                            Grab.RegisterMiss();
+                            //Stops endless biting at a player it can't walk to, e.g. right below a cliff edge
+                            if (Grab.ConsecutiveMisses >= 3 && targetPlayer != null && !Targeting.IsReachableByPath(targetPlayer))
+                            {
+                                LogIfDebugBuild("JPOGTrex: Missed too many bites at a player it can't walk to, stopping chase");
+                                StopChase();
+                                break;
+                            }
                             LogIfDebugBuild("JPOGTrex: Hit did not connect, returning to chasingPlayer");
                             SwitchToBehaviourState((int)State.ChasingPlayer);
                         }
@@ -435,15 +453,17 @@ namespace JPOGTrex {
                     }
                     if (!Feeding.IsShaking)
                     {
-                        if (Feeding.IsHungry && Feeding.HasBodyInMouth)
+                        if (Feeding.IsHungry && Feeding.HasEdibleBodyInMouth)
                         {
                             LogIfDebugBuild("JPOGTrex: Done shaking, switching to eat body");
                             SwitchToBehaviourState((int)State.EatingPlayer);
                         }
                         else
                         {
-                            //Not hungry, or the body left the mouth (e.g. teleported), so there is nothing to eat
-                            LogIfDebugBuild($"JPOGTrex: Done shaking, not eating || isHungry = [{Feeding.IsHungry}] || hasBodyInMouth = [{Feeding.HasBodyInMouth}]");
+                            //Not hungry, or there is no body in the mouth that can be eaten (e.g. it's snapped in half)
+                            LogIfDebugBuild($"JPOGTrex: Done shaking, not eating || isHungry = [{Feeding.IsHungry}] || hasEdibleBodyInMouth = [{Feeding.HasEdibleBodyInMouth}]");
+                            //Dropped locally first, so the body-in-mouth check doesn't pick it up again before the RPC arrives
+                            Feeding.DropCarriedBodies();
                             DropcarriedBodyServerRpc();
                             SwitchToBehaviourState((int)State.SearchingForPlayer);
                         }
@@ -514,8 +534,39 @@ namespace JPOGTrex {
         {
             targetPlayer = null;
             Targeting.ResetLostPlayer();
+            Grab.ResetMisses();
             Suspicion.SetPercent(60f);
             SwitchToBehaviourState((int)State.SearchingForPlayer);
+        }
+
+        //A bite hit can arrive after the grab state already gave up on it, the body is then still in the mouth
+        private bool HandleBodyStillInMouth()
+        {
+            if (!Feeding.HasBodyInMouth || Feeding.IsShaking || Feeding.IsEating)
+            {
+                return false;
+            }
+            LogIfDebugBuild("JPOGTrex: Still has a body in the mouth, switching to GrabbingPlayer");
+            SwitchToBehaviourState((int)State.GrabbingPlayer);
+            return true;
+        }
+
+        private void StopSniffAndRoar()
+        {
+            if (sniffCoroutine != null)
+            {
+                StopCoroutine(sniffCoroutine);
+                sniffCoroutine = null;
+            }
+            if (roarCoroutine != null)
+            {
+                StopCoroutine(roarCoroutine);
+                roarCoroutine = null;
+            }
+            sniffing = false;
+            roaring = false;
+            isSniffingStarted = false;
+            isRoaringStarted = false;
         }
 
         public bool CheckIfInNotAnimation()
@@ -635,9 +686,9 @@ namespace JPOGTrex {
         [ServerRpc(RequireOwnership = false)]
         public void KillPlayerServerRpc(int playerId)
         {
-            if (Grab.TryBeginKill())
+            if (Grab.TryBeginKill(playerId))
             {
-                KillPlayerClientRpc(playerId);
+                KillPlayerClientRpc(playerId, Grab.ChooseDeathAnimation());
             }
             else
             {
@@ -646,9 +697,9 @@ namespace JPOGTrex {
         }
 
         [ClientRpc]
-        public void KillPlayerClientRpc(int playerId)
+        public void KillPlayerClientRpc(int playerId, int deathAnimation)
         {
-            Grab.StartKill(playerId);
+            Grab.StartKill(playerId, deathAnimation);
         }
 
         [ClientRpc]

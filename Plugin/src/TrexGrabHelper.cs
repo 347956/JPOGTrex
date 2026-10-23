@@ -12,14 +12,27 @@ namespace JPOGTrex
         private readonly JPOGTrexAI trexAI;
         private readonly List<int> hitPlayerIds = new List<int>();
         private readonly float grabDuration = 1.2f;
+        //Indexes in StartOfRound.playerRagdolls
+        private const int NormalDeathAnimation = 0;
+        private const int HeadBurstDeathAnimation = 1;
+        private const int SlicedInHalfDeathAnimation = 7;
+        private readonly double slicedInHalfChance = 0.15;
+        private readonly double headBurstChance = 0.05;
+        //Time after a bite that hit before the T-rex can bite again
+        private readonly float grabCooldown = 4f;
+        //Server only, the players that are being killed right now, so the same player can't be killed twice
+        private readonly HashSet<int> playersBeingKilled = new HashSet<int>();
         private Coroutine? grabCheckCoroutine;
-        private Coroutine? killPlayerCoroutine;
+        private int activeKills;
         private bool hitConnect;
+        private float lastHitTime = -100f;
 
         public bool BeginningGrab { get; private set; }
         public bool InGrabAttack { get; private set; }
-        public bool InKillAnimation { get; private set; }
+        public bool InKillAnimation => activeKills > 0;
         public bool IsBusy => BeginningGrab || InGrabAttack || InKillAnimation;
+        public bool CanGrab => Time.time - lastHitTime >= grabCooldown;
+        public int ConsecutiveMisses { get; private set; }
 
         public TrexGrabHelper(JPOGTrexAI trexAI)
         {
@@ -50,10 +63,25 @@ namespace JPOGTrex
             return true;
         }
 
+        //Runs on every client
         public void OnHitConnected()
         {
             hitConnect = true;
+            lastHitTime = Time.time;
+            ConsecutiveMisses = 0;
             LogIfDebugBuild($"JPOGTrex: hitConnect = [{hitConnect}]");
+        }
+
+        //Owner only
+        public void RegisterMiss()
+        {
+            ConsecutiveMisses++;
+            LogIfDebugBuild($"JPOGTrex: Missed bites in a row = [{ConsecutiveMisses}]");
+        }
+
+        public void ResetMisses()
+        {
+            ConsecutiveMisses = 0;
         }
 
         //Runs on every client
@@ -80,28 +108,34 @@ namespace JPOGTrex
             }
         }
 
-        //Server only, returns false if the T-rex is already busy killing a player
-        public bool TryBeginKill()
+        //Server only, returns false if this player is already being killed. Several players can be killed by the same bite
+        public bool TryBeginKill(int playerId)
         {
-            LogIfDebugBuild($"JPOGTrex: Checking if in killAnimation || inKillAnimation ={InKillAnimation}");
-            if (InKillAnimation)
+            bool canKill = playersBeingKilled.Add(playerId);
+            LogIfDebugBuild($"JPOGTrex: Trying to kill player [{playerId}] || canKill = [{canKill}]");
+            return canKill;
+        }
+
+        //Server only, picked here so every client knows which ragdoll the body uses
+        public int ChooseDeathAnimation()
+        {
+            double roll = trexAI.EnemyRandom.NextDouble();
+            if (roll < slicedInHalfChance)
             {
-                return false;
+                return SlicedInHalfDeathAnimation;
             }
-            InKillAnimation = true;
-            return true;
+            if (roll < slicedInHalfChance + headBurstChance)
+            {
+                return HeadBurstDeathAnimation;
+            }
+            return NormalDeathAnimation;
         }
 
         //Runs on every client
-        public void StartKill(int playerId)
+        public void StartKill(int playerId, int deathAnimation)
         {
-            if (killPlayerCoroutine != null)
-            {
-                LogIfDebugBuild($"JPOGTrex: In killPlayerCoroutine!, stopping previous killPlayerCoroutine!");
-                trexAI.StopCoroutine(killPlayerCoroutine);
-            }
             LogIfDebugBuild($"JPOGTrex: start Killing player [{playerId}] rpc");
-            killPlayerCoroutine = trexAI.StartCoroutine(KillPlayer(playerId));
+            trexAI.StartCoroutine(KillPlayer(playerId, deathAnimation));
         }
 
         //Checks if the attack should hit the player (during the animation of the grab/bite)
@@ -114,7 +148,7 @@ namespace JPOGTrex
             {
                 //Only returns the local player, so every client checks itself
                 PlayerControllerB playerControllerB = trexAI.MeetsStandardPlayerCollisionConditions(player);
-                if (playerControllerB == null)
+                if (playerControllerB == null || playerControllerB.isInHangarShipRoom)
                 {
                     continue;
                 }
@@ -159,51 +193,61 @@ namespace JPOGTrex
         }
 
         //Runs on every client
-        private IEnumerator KillPlayer(int playerId)
+        private IEnumerator KillPlayer(int playerId, int deathAnimation)
         {
-            if (trexAI.IsOwner)
+            activeKills++;
+            //The finally block runs on every early exit, so the counters can't get stuck (only StopAllCoroutines skips it, which only happens when the T-rex dies)
+            try
             {
-                trexAI.agent.speed = Mathf.Clamp(trexAI.agent.speed, 0f, 2f);
-            }
-            LogIfDebugBuild($"JPOGTrex: begin Killing player: [{playerId}]");
-            PlayerControllerB killPlayer = StartOfRound.Instance.allPlayerScripts[playerId];
-            if (killPlayer == null || killPlayer.isPlayerDead)
-            {
-                LogIfDebugBuild($"JPOGTrex: Player [{playerId}] is not valid or already dead.");
-                InKillAnimation = false;
-                killPlayerCoroutine = null;
-                yield break;
-            }
-            if (GameNetworkManager.Instance.localPlayerController == killPlayer)
-            {
-                int killAnimation = trexAI.EnemyRandom.Next(0, 2) == 0 ? 1 : 7;
-                killPlayer.KillPlayer(Vector3.zero, spawnBody: true, CauseOfDeath.Mauling, killAnimation);
-            }
-            float startTime = Time.timeSinceLevelLoad;
-            yield return new WaitUntil(() => killPlayer.deadBody != null || Time.timeSinceLevelLoad - startTime > 2f);
-            if (killPlayer.deadBody == null)
-            {
-                LogIfDebugBuild("JPOGTrex: Player body was not spawned or found withing 2 seconds");
-                killPlayer.inAnimationWithEnemy = null;
-                InKillAnimation = false;
-                trexAI.targetPlayer = null;
-                killPlayerCoroutine = null;
-                yield break;
-            }
-            trexAI.Feeding.TakeBodyInMouth(playerId);
-            startTime = Time.timeSinceLevelLoad;
-            Quaternion rotateTo = Quaternion.Euler(new Vector3(0f, RoundManager.Instance.YRotationThatFacesTheFarthestFromPosition(trexAI.transform.position + Vector3.up * 0.6f), 0f));
-            Quaternion rotateFrom = trexAI.transform.rotation;
-            while (Time.timeSinceLevelLoad - startTime < 2f)
-            {
-                yield return null;
                 if (trexAI.IsOwner)
                 {
-                    trexAI.transform.rotation = Quaternion.RotateTowards(rotateFrom, rotateTo, 60f * Time.deltaTime);
+                    trexAI.agent.speed = Mathf.Clamp(trexAI.agent.speed, 0f, 2f);
+                }
+                LogIfDebugBuild($"JPOGTrex: begin Killing player: [{playerId}]");
+                PlayerControllerB killPlayer = StartOfRound.Instance.allPlayerScripts[playerId];
+                if (killPlayer == null || killPlayer.isPlayerDead)
+                {
+                    LogIfDebugBuild($"JPOGTrex: Player [{playerId}] is not valid or already dead.");
+                    yield break;
+                }
+                if (GameNetworkManager.Instance.localPlayerController == killPlayer)
+                {
+                    killPlayer.KillPlayer(Vector3.zero, spawnBody: true, CauseOfDeath.Mauling, deathAnimation);
+                }
+                float startTime = Time.timeSinceLevelLoad;
+                yield return new WaitUntil(() => killPlayer.deadBody != null || Time.timeSinceLevelLoad - startTime > 2f);
+                if (killPlayer.deadBody == null)
+                {
+                    LogIfDebugBuild("JPOGTrex: Player body was not spawned or found withing 2 seconds");
+                    killPlayer.inAnimationWithEnemy = null;
+                    if (trexAI.targetPlayer == killPlayer)
+                    {
+                        trexAI.targetPlayer = null;
+                    }
+                    yield break;
+                }
+                //A body that is snapped in half is not eaten, only part of it could be removed
+                trexAI.Feeding.TakeBodyInMouth(playerId, canBeEaten: deathAnimation != SlicedInHalfDeathAnimation);
+                startTime = Time.timeSinceLevelLoad;
+                Quaternion rotateTo = Quaternion.Euler(new Vector3(0f, RoundManager.Instance.YRotationThatFacesTheFarthestFromPosition(trexAI.transform.position + Vector3.up * 0.6f), 0f));
+                Quaternion rotateFrom = trexAI.transform.rotation;
+                while (Time.timeSinceLevelLoad - startTime < 2f)
+                {
+                    yield return null;
+                    if (trexAI.IsOwner)
+                    {
+                        trexAI.transform.rotation = Quaternion.RotateTowards(rotateFrom, rotateTo, 60f * Time.deltaTime);
+                    }
                 }
             }
-            InKillAnimation = false;
-            killPlayerCoroutine = null;
+            finally
+            {
+                activeKills--;
+                if (trexAI.IsServer)
+                {
+                    playersBeingKilled.Remove(playerId);
+                }
+            }
         }
     }
 }

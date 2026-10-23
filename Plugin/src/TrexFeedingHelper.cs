@@ -11,6 +11,7 @@ namespace JPOGTrex
     {
         private readonly JPOGTrexAI trexAI;
         private readonly List<DeadBodyInfo> carryingBodies = new List<DeadBodyInfo>();
+        private readonly HashSet<DeadBodyInfo> inedibleBodies = new HashSet<DeadBodyInfo>();
         private readonly int maxPlayersToEat = 2;
         private readonly float shakeDuration = 2.6f;
         private readonly float eatDuration = 5.7f;
@@ -23,6 +24,7 @@ namespace JPOGTrex
         public bool IsHungry { get; private set; } = true;
         public int PlayersEaten { get; private set; }
         public bool HasBodyInMouth => carryingBodies.Exists(IsStillInMouth);
+        public bool HasEdibleBodyInMouth => carryingBodies.Exists(body => IsStillInMouth(body) && !inedibleBodies.Contains(body));
 
         public TrexFeedingHelper(JPOGTrexAI trexAI)
         {
@@ -80,7 +82,7 @@ namespace JPOGTrex
             eatCoroutine = trexAI.StartCoroutine(EatPlayerCoroutine());
         }
 
-        public void TakeBodyInMouth(int playerId)
+        public void TakeBodyInMouth(int playerId, bool canBeEaten)
         {
             LogIfDebugBuild($"JPOGTrex: Taking boddy of player [{playerId}] in mouth");
             DeadBodyInfo killedPlayerBody = StartOfRound.Instance.allPlayerScripts[playerId].deadBody;
@@ -98,7 +100,11 @@ namespace JPOGTrex
 
             //The T-rex Should be able to multikill so all bodies it grabs are added to the list
             carryingBodies.Add(killedPlayerBody);
-            LogIfDebugBuild($"JPOGTrex: carryingBodies count = [{carryingBodies.Count}]");
+            if (!canBeEaten)
+            {
+                inedibleBodies.Add(killedPlayerBody);
+            }
+            LogIfDebugBuild($"JPOGTrex: carryingBodies count = [{carryingBodies.Count}] || canBeEaten = [{canBeEaten}]");
         }
 
         public void DropCarriedBodies()
@@ -121,6 +127,7 @@ namespace JPOGTrex
                 carryingBody.matchPositionExactly = false;
             }
             carryingBodies.Clear();
+            inedibleBodies.Clear();
         }
 
         //A body can leave the mouth without us knowing, e.g. when it gets teleported to the ship
@@ -152,21 +159,17 @@ namespace JPOGTrex
             IsEating = false;
             foreach (var carryingBody in carryingBodies)
             {
-                if (carryingBody != null)
+                if (!IsStillInMouth(carryingBody) || inedibleBodies.Contains(carryingBody))
                 {
-                    SetHeldByEnemy(carryingBody, false);
-                }
-                if (!IsStillInMouth(carryingBody))
-                {
-                    LogIfDebugBuild("JPOGTrex: Body is no longer in the mouth, skipping it");
                     continue;
                 }
                 LogIfDebugBuild($"JPOGTrex: Deactivating body = [{carryingBody.playerObjectId}]");
+                SetHeldByEnemy(carryingBody, false);
                 carryingBody.DeactivateBody(false);
                 PlayersEaten++;
             }
-            //Clears the list to make sure no bodies remain
-            carryingBodies.Clear();
+            //Drops the bodies that couldn't be eaten and clears the list to make sure no bodies remain
+            DropCarriedBodies();
             IsHungry = PlayersEaten < maxPlayersToEat;
             doneEating = true;
             eatCoroutine = null;
