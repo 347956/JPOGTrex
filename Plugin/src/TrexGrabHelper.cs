@@ -22,6 +22,9 @@ namespace JPOGTrex
         private readonly float grabCooldown = 4f;
         //Server only, the players that are being killed right now, so the same player can't be killed twice
         private readonly HashSet<int> playersBeingKilled = new HashSet<int>();
+        private const int PlayerLayer = 1 << 3;
+        //Radius of the bite around the mouth, the mouth follows the head during the bite animation
+        public const float MouthBiteRadius = 1.5f;
         private Coroutine? grabCheckCoroutine;
         private int activeKills;
         private bool hitConnect;
@@ -138,11 +141,36 @@ namespace JPOGTrex
             trexAI.StartCoroutine(KillPlayer(playerId, deathAnimation));
         }
 
-        //Checks if the attack should hit the player (during the animation of the grab/bite)
+        //Checks if the attack should hit the player (during the animation of the grab/bite), only players near the mouth are hit
         private void GrabAttackHitAnimation()
         {
-            int playerLayer = 1 << 3;
-            Collider[] hitColliders = Physics.OverlapBox(trexAI.mouthAttackHitBox.position, trexAI.mouthAttackHitBox.localScale, Quaternion.identity, playerLayer);
+            GetMouthSphere(out Vector3 mouthCenter, out float mouthRadius);
+            bool hitPlayer = CheckBiteZone(Physics.OverlapSphere(mouthCenter, mouthRadius, PlayerLayer));
+            if (hitPlayer)
+            {
+                trexAI.SetHitConnectToTrueServerRpc();
+            }
+        }
+
+        //Uses the mouth bite zone's sphere from Unity, so its size in the editor is the size in game. Its collider is disabled on spawn
+        public void GetMouthSphere(out Vector3 center, out float radius)
+        {
+            SphereCollider? zone = trexAI.mouthBiteZone;
+            if (zone == null)
+            {
+                center = trexAI.mouthGrip.position;
+                radius = MouthBiteRadius;
+                return;
+            }
+            Transform zoneTransform = zone.transform;
+            Vector3 scale = zoneTransform.lossyScale;
+            center = zoneTransform.TransformPoint(zone.center);
+            //Same as Unity, a sphere collider grows with the largest axis of its scale
+            radius = zone.radius * Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z));
+        }
+
+        private bool CheckBiteZone(Collider[] hitColliders)
+        {
             bool hitPlayer = false;
             foreach (var player in hitColliders)
             {
@@ -155,24 +183,32 @@ namespace JPOGTrex
                 int playerId = (int)playerControllerB.playerClientId;
                 if (!hitPlayerIds.Contains(playerId))
                 {
-                    LogIfDebugBuild($"JPOGTrex: Grab Attack Hit player: [{playerId}], calling to kill player");
+                    LogIfDebugBuild($"JPOGTrex: Grab Attack Hit player: [{playerId}], calling to kill player || {DescribeDistances(playerControllerB)}");
                     trexAI.ResetHitTimer();
                     hitPlayer = true;
                     trexAI.KillPlayerServerRpc(playerId);
                     hitPlayerIds.Add(playerId);
                 }
             }
-            if (hitPlayer)
-            {
-                trexAI.SetHitConnectToTrueServerRpc();
-            }
+            return hitPlayer;
+        }
+
+        //Horizontal distances from the T-rex's center and from its mouth, used to tune the bite range
+        private string DescribeDistances(PlayerControllerB player)
+        {
+            Vector3 toPlayer = player.transform.position - trexAI.transform.position;
+            GetMouthSphere(out Vector3 mouthCenter, out _);
+            Vector3 mouthToPlayer = player.transform.position - mouthCenter;
+            toPlayer.y = 0f;
+            mouthToPlayer.y = 0f;
+            return $"distance from center = [{toPlayer.magnitude:0.0}] from mouth = [{mouthToPlayer.magnitude:0.0}]";
         }
 
         //Owner only
         private IEnumerator BeginGrab()
         {
             trexAI.StartGrabCheckServerRpc();
-            LogIfDebugBuild("JPOGTrex: Beginning grab Attack!");
+            LogIfDebugBuild($"JPOGTrex: Beginning grab Attack! || {(trexAI.targetPlayer != null ? DescribeDistances(trexAI.targetPlayer) : "no target")}");
             trexAI.DoAnimationServerRpc("grabPlayer");
             trexAI.DoAnimationServerRpc("grabbedPlayer");
             yield return new WaitForSeconds(grabDuration);

@@ -21,7 +21,7 @@ namespace JPOGTrex.Configuration {
         {
             // The value ranges keep the T-Rex working with odd values, e.g. the chase vision range is the vision length - 20
             DefaultSpeed = cfg.Bind(CATEGORY_BEHAVIOR, "Default speed", 6f, new ConfigDescription(
-                "The default speed of the T-Rex. Increasing the default speed will also increase the chasing speed e.g. default speed * 2 = chasing speed",
+                "The default speed of the T-Rex. Increasing the default speed will also increase the chasing speed e.g. default speed * 2.25 = chasing speed",
                 new AcceptableValueRange<float>(1f, 20f)));
 
             VisionRangeLength = cfg.Bind(CATEGORY_BEHAVIOR, "Vision Range length", 70, new ConfigDescription(

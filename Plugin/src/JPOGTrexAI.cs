@@ -16,7 +16,8 @@ namespace JPOGTrex {
         public Transform turnCompass = null!;
         public Transform attackArea = null!;
         public Transform mouthGrip = null!;
-        public Transform mouthAttackHitBox = null!;
+        //Optional, the bite hits players inside this sphere. Without it a 1.5 m sphere around the mouth grip is used
+        public SphereCollider? mouthBiteZone;
         public AudioSource trexRoarSFX = null!;
         public AudioSource trexSubRoarSFX = null!;
 #pragma warning restore 0649
@@ -32,12 +33,23 @@ namespace JPOGTrex {
         //Every client checks if its own player is seen, so the host's vision settings are shared with everyone
         private readonly NetworkVariable<int> visionRangeLength = new NetworkVariable<int>(70);
         private readonly NetworkVariable<int> visionRangeWidth = new NetworkVariable<int>(60);
+        //The player the T-rex is going after (-1 is nobody), so that player can be scared on their own machine
+        private readonly NetworkVariable<int> fearTargetId = new NetworkVariable<int>(-1, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private readonly float fearWhenTargeted = 0.7f;
+        private readonly float fearIncreaseWhileHunted = 1.4f;
+        private readonly float fearRange = 40f;
+        private bool wasLocalPlayerTargeted;
         internal int VisionRangeLength => visionRangeLength.Value;
         internal int VisionRangeWidth => visionRangeWidth.Value;
 
         private float timeSinceHittingLocalPlayer;
+        //Knockback when touching the T-rex, the push fades out over about half a second so 10 pushes a player roughly 5 m away
+        private readonly float knockbackHorizontalForce = 10f;
+        private readonly float knockbackUpwardForce = 5f;
         private bool isDeadAnimationDone;
         private float defaultSpeed = 6f;
+        //Chase speed = default speed * this. Above 12 the faster run animation is used
+        private readonly float chaseSpeedMultiplier = 2.25f;
         private State previousState = State.Idle;
         private bool roaring;
         private bool isRoaringStarted;
@@ -128,6 +140,27 @@ namespace JPOGTrex {
             Plugin.Logger.LogInfo(text);
         }
 
+        //These objects are only used for their position and shape, the bite does its own check with them.
+        //Their colliders would otherwise act as triggers on the Enemies layer.
+        private void DisableUnusedColliders()
+        {
+            DisableColliders(mouthGrip);
+            DisableColliders(attackArea);
+            DisableColliders(mouthBiteZone != null ? mouthBiteZone.transform : null);
+        }
+
+        private static void DisableColliders(Transform? target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+            foreach (Collider collider in target.GetComponents<Collider>())
+            {
+                collider.enabled = false;
+            }
+        }
+
         private void CreateHelpers()
         {
             Suspicion = new TrexSuspicionHelper(this);
@@ -148,7 +181,7 @@ namespace JPOGTrex {
                 config.SuspicionDecrement.Value,
                 config.SuspiciontDecreaseTime.Value);
             Targeting.Configure(VisionRangeLength - 20);
-            Chase.Configure(defaultSpeed * 2f);
+            Chase.Configure(defaultSpeed * chaseSpeedMultiplier);
         }
 
         public override void OnNetworkSpawn()
@@ -164,6 +197,7 @@ namespace JPOGTrex {
         public override void Start()
         {
             CreateHelpers();
+            DisableUnusedColliders();
             AssignConfigVariables();
             agent.stoppingDistance = 0f;
             base.Start();
@@ -199,12 +233,15 @@ namespace JPOGTrex {
                 Suspicion.TickLocalSightCheck(Time.deltaTime);
             }
 
+            ScareLocalPlayerIfTargeted();
+
             if (!IsOwner)
             {
                 return;
             }
 
             var state = currentBehaviourStateIndex;
+            UpdateFearTarget(state);
             if (targetPlayer != null && (state == (int)State.GrabPlayer || state == (int)State.GrabbedPlayer || state == (int)State.GrabbingPlayer || state == (int)State.EatingPlayer || state == (int)State.SpottedPlayer)) {
                 turnCompass.LookAt(targetPlayer.gameplayCamera.transform.position);
                 transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(new Vector3(0f, turnCompass.eulerAngles.y, 0f)), 4f * Time.deltaTime);
@@ -226,7 +263,8 @@ namespace JPOGTrex {
                 SetWalkingAnimationServerRpc(agent.speed);
             }
             //Steering runs every frame while chasing instead of on the AI interval, so the T-rex doesn't head for an outdated position
-            if (state == (int)State.ChasingPlayer && !wasStunned)
+            //Also during the bite, otherwise a walking player steps out of reach before the jaws close
+            if ((state == (int)State.ChasingPlayer || state == (int)State.GrabPlayer) && !wasStunned)
             {
                 Chase.Tick();
             }
@@ -253,7 +291,6 @@ namespace JPOGTrex {
                         agent.speed = defaultSpeed;
                         agent.autoBraking = true;
                         SetWalkingAnimationServerRpc(agent.speed);
-                        StopSearch(currentSearch);
                         StartSearch(transform.position);
                         previousState = State.SearchingForPlayer;
                     }
@@ -322,9 +359,10 @@ namespace JPOGTrex {
                     if (previousState != State.ChasingPlayer)
                     {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [ChasingPlayer]");
-                        agent.speed = defaultSpeed * 2f;
+                        agent.speed = defaultSpeed * chaseSpeedMultiplier;
                         previousState = State.ChasingPlayer;
-                        movingTowardsTargetPlayer = true;
+                        //The chase helper steers instead, EnemyAI would otherwise overwrite its destination every frame
+                        movingTowardsTargetPlayer = false;
                         SetWalkingAnimationServerRpc(agent.speed);
                         Targeting.ResetLostPlayer();
                         //The chase helper slows the T-rex down near the target instead, braking makes it slow down far too early
@@ -395,12 +433,7 @@ namespace JPOGTrex {
                     {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [GrabPlayer]");
                         previousState = State.GrabPlayer;
-                        //Brake towards the target during the bite so the T-rex doesn't run past it
-                        agent.autoBraking = true;
-                        if (targetPlayer != null)
-                        {
-                            SetDestinationToPosition(targetPlayer.transform.position);
-                        }
+                        //The chase helper keeps steering during the bite, it slows down once the mouth reaches the target so it doesn't run past it
                         if (targetPlayer != null && targetPlayer.isInHangarShipRoom)
                         {
                             LogIfDebugBuild("JPOGTrex: TargetPlayer is inside the ship, stopping chase");
@@ -527,6 +560,33 @@ namespace JPOGTrex {
                     SwitchToBehaviourState((int)State.SearchingForPlayer);
                     break;
             }
+        }
+
+        //Owner only, shares who the T-rex is going after while it sniffs, roars, chases or bites
+        private void UpdateFearTarget(int state)
+        {
+            bool hunting = state == (int)State.SpottedPlayer || state == (int)State.Roaring || state == (int)State.ChasingPlayer || state == (int)State.GrabPlayer;
+            int targetId = hunting && targetPlayer != null && !targetPlayer.isPlayerDead ? (int)targetPlayer.playerClientId : -1;
+            if (fearTargetId.Value != targetId)
+            {
+                fearTargetId.Value = targetId;
+            }
+        }
+
+        //Runs on every client, only the targeted player gets scared. Same fear effect as vanilla enemies
+        private void ScareLocalPlayerIfTargeted()
+        {
+            PlayerControllerB localPlayer = GameNetworkManager.Instance.localPlayerController;
+            bool targeted = localPlayer != null && !localPlayer.isPlayerDead && fearTargetId.Value == (int)localPlayer.playerClientId;
+            if (targeted && !wasLocalPlayerTargeted)
+            {
+                localPlayer!.JumpToFearLevel(fearWhenTargeted);
+            }
+            if (targeted && Vector3.Distance(transform.position, localPlayer!.transform.position) < fearRange)
+            {
+                localPlayer.IncreaseFearLevelOverTime(fearIncreaseWhileHunted);
+            }
+            wasLocalPlayerTargeted = targeted;
         }
 
         //Drops the current target and returns to searching with lowered suspicion
@@ -723,8 +783,26 @@ namespace JPOGTrex {
             {
                 LogIfDebugBuild("JPOGTrex: Collision with Player!");
                 timeSinceHittingLocalPlayer = 0f;
-                playerControllerB.DamagePlayer(20);
+                Vector3 knockback = GetKnockback(playerControllerB);
+                //Same as vanilla enemies (e.g. the Giant Kiwi), this pushes the local player away and fades out by itself
+                if (!playerControllerB.inVehicleAnimation)
+                {
+                    playerControllerB.externalForceAutoFade += knockback;
+                }
+                playerControllerB.DamagePlayer(20, hasDamageSFX: true, callRPC: true, CauseOfDeath.Crushing, 0, fallDamage: false, knockback * 0.4f);
             }
+        }
+
+        //Pushes the player away from the T-rex's center, with a small hop so they don't get stuck against the legs
+        private Vector3 GetKnockback(PlayerControllerB player)
+        {
+            Vector3 away = player.transform.position - transform.position;
+            away.y = 0f;
+            if (away.sqrMagnitude < 0.01f)
+            {
+                away = transform.forward;
+            }
+            return away.normalized * knockbackHorizontalForce + Vector3.up * knockbackUpwardForce;
         }
 
         public override void OnCollideWithEnemy(Collider other, EnemyAI? collidedEnemy = null)
