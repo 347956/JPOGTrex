@@ -7,10 +7,6 @@ using UnityEngine;
 
 namespace JPOGTrex {
 
-    // You may be wondering, how does the JPOGTrex know it is from class JPOGTrexAI?
-    // Well, we give it a reference to to this class in the Unity project where we make the asset bundle.
-    // Asset bundles cannot contain scripts, so our script lives here. It is important to get the
-    // reference right, or else it will not find this file. See the guide for more information.
 
     class JPOGTrexAI : EnemyAI, IVisibleThreat
     {
@@ -242,7 +238,7 @@ namespace JPOGTrex {
                         break;
                     }
                     Suspicion.DecreaseSuspicion();
-                    if (Suspicion.TryTakeMovingPlayer(out PlayerControllerB movingPlayer))
+                    if (Suspicion.TryTakeMovingPlayer(out PlayerControllerB movingPlayer) && Targeting.IsPlayerReachable(movingPlayer))
                     {
                         targetPlayer = movingPlayer;
                         StopSearch(currentSearch);
@@ -299,10 +295,12 @@ namespace JPOGTrex {
                         previousState = State.ChasingPlayer;
                         movingTowardsTargetPlayer = true;
                         SetWalkingAnimationServerRpc(agent.speed);
+                        Targeting.ResetLostPlayer();
                     }
                     if (targetPlayer != null)
                     {
                         SetDestinationToPosition(targetPlayer.transform.position);
+                        Targeting.UpdateUnreachableTimer();
                         if (Targeting.IsInGrabRange())
                         {
                             SwitchToBehaviourState((int)State.GrabPlayer);
@@ -314,9 +312,9 @@ namespace JPOGTrex {
                             StopChase();
                             break;
                         }
-                        if (Targeting.IsTargetTooHigh())
+                        if (Targeting.HasBeenUnreachableTooLong)
                         {
-                            LogIfDebugBuild("JPOGTrex: TargetPlayer was too high to reach!");
+                            LogIfDebugBuild("JPOGTrex: TargetPlayer has been unreachable for too long!");
                             StopChase();
                             break;
                         }

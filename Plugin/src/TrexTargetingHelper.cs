@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using GameNetcodeStuff;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace JPOGTrex
 {
@@ -9,14 +11,21 @@ namespace JPOGTrex
         private readonly JPOGTrexAI trexAI;
 
         private readonly float attackRange = 8f;
+        //How far above the T-rex's feet a player can be and still get bitten
+        private readonly float maxBiteHeight = 6f;
         private readonly float maxSearchTime = 20.0f;
-        private readonly float stopChaseHeight = 12f;
+        //Big enough to still find the navmesh below a jumping player, too small for a player flying with a jetpack
+        private readonly float navMeshSnapRadius = 3f;
+        private readonly float maxUnreachableTime = 5f;
+        private readonly NavMeshPath path = new NavMeshPath();
+        private float unreachableSince = -1f;
         private int visionRangeChase = 50;
 
         public bool IsMovingTowardsLastKnownPosition { get; private set; }
         public Vector3 LastKnownPosition { get; private set; }
         public float TimeSinceLostPlayer { get; private set; }
         public bool HasSearchTimedOut => TimeSinceLostPlayer >= maxSearchTime;
+        public bool HasBeenUnreachableTooLong => unreachableSince >= 0f && Time.time - unreachableSince >= maxUnreachableTime;
         public int VisionRangeChase => visionRangeChase;
 
         public TrexTargetingHelper(JPOGTrexAI trexAI)
@@ -47,6 +56,42 @@ namespace JPOGTrex
         {
             IsMovingTowardsLastKnownPosition = false;
             TimeSinceLostPlayer = 0.0f;
+            unreachableSince = -1f;
+        }
+
+        //A player can be reached if the T-rex can bite them from where it stands, or walk to them over the navmesh
+        public bool IsPlayerReachable(PlayerControllerB player)
+        {
+            if (IsWithinBiteReach(player))
+            {
+                return true;
+            }
+            if (!NavMesh.SamplePosition(player.transform.position, out NavMeshHit navMeshHit, navMeshSnapRadius, trexAI.agent.areaMask))
+            {
+                return false;
+            }
+            return trexAI.agent.CalculatePath(navMeshHit.position, path) && path.status == NavMeshPathStatus.PathComplete;
+        }
+
+        //Tracks how long the target has been unreachable without a break, so a short jump never ends a chase
+        public void UpdateUnreachableTimer()
+        {
+            if (trexAI.targetPlayer == null || IsPlayerReachable(trexAI.targetPlayer))
+            {
+                unreachableSince = -1f;
+                return;
+            }
+            if (unreachableSince < 0f)
+            {
+                LogIfDebugBuild($"JPOGTrex: Target player [{trexAI.targetPlayer.playerClientId}] is unreachable");
+                unreachableSince = Time.time;
+            }
+        }
+
+        private bool IsWithinBiteReach(PlayerControllerB player)
+        {
+            float heightAboveTrex = player.transform.position.y - trexAI.transform.position.y;
+            return heightAboveTrex <= maxBiteHeight && Vector3.Distance(trexAI.transform.position, player.transform.position) <= attackRange;
         }
 
         public bool FoundClosestPlayerInRange(float range = 15f, float senseRange = 5f)
@@ -58,7 +103,8 @@ namespace JPOGTrex
                 trexAI.TargetClosestPlayer(bufferDistance: 1.5f, requireLineOfSight: false);
                 range = senseRange;
             }
-            if (trexAI.targetPlayer != null && Vector3.Distance(trexAI.transform.position, trexAI.targetPlayer.transform.position) < range && !trexAI.targetPlayer.isInHangarShipRoom)
+            if (trexAI.targetPlayer != null && Vector3.Distance(trexAI.transform.position, trexAI.targetPlayer.transform.position) < range && !trexAI.targetPlayer.isInHangarShipRoom
+                && IsPlayerReachable(trexAI.targetPlayer))
             {
                 LogIfDebugBuild("JPOGTrex: Spotted player in close proximity");
                 return true;
@@ -80,12 +126,7 @@ namespace JPOGTrex
 
         public bool IsInGrabRange()
         {
-            return trexAI.targetPlayer != null && Vector3.Distance(trexAI.transform.position, trexAI.targetPlayer.transform.position) <= attackRange;
-        }
-
-        public bool IsTargetTooHigh()
-        {
-            return trexAI.targetPlayer != null && Mathf.Abs(trexAI.transform.position.y - trexAI.targetPlayer.transform.position.y) > stopChaseHeight;
+            return trexAI.targetPlayer != null && IsWithinBiteReach(trexAI.targetPlayer);
         }
 
         //The target is too far away and out of sight
