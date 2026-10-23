@@ -28,6 +28,12 @@ namespace JPOGTrex {
         internal TrexEnemyAttackHelper EnemyAttack { get; private set; } = null!;
         internal System.Random EnemyRandom { get; private set; } = null!;
 
+        //Every client checks if its own player is seen, so the host's vision settings are shared with everyone
+        private readonly NetworkVariable<int> visionRangeLength = new NetworkVariable<int>(70);
+        private readonly NetworkVariable<int> visionRangeWidth = new NetworkVariable<int>(60);
+        internal int VisionRangeLength => visionRangeLength.Value;
+        internal int VisionRangeWidth => visionRangeWidth.Value;
+
         private float timeSinceHittingLocalPlayer;
         private bool isDeadAnimationDone;
         private float defaultSpeed = 6f;
@@ -130,16 +136,24 @@ namespace JPOGTrex {
 
         private void AssignConfigVariables()
         {
-            PluginConfig config = PluginConfig.Instance;
+            PluginConfig config = Plugin.BoundConfig;
             defaultSpeed = config.DefaultSpeed.Value;
             Suspicion.Configure(
                 config.MaxSuspicionLevel.Value,
                 config.SuspicionIncrement.Value,
                 config.SuspicionDecrement.Value,
-                config.SuspiciontDecreaseTime.Value,
-                config.VisionRangeLength.Value,
-                config.VisionRangeWidth.Value);
-            Targeting.Configure(config.VisionRangeLength.Value - 20);
+                config.SuspiciontDecreaseTime.Value);
+            Targeting.Configure(VisionRangeLength - 20);
+        }
+
+        public override void OnNetworkSpawn()
+        {
+            base.OnNetworkSpawn();
+            if (IsServer)
+            {
+                visionRangeLength.Value = Plugin.BoundConfig.VisionRangeLength.Value;
+                visionRangeWidth.Value = Plugin.BoundConfig.VisionRangeWidth.Value;
+            }
         }
 
         public override void Start()

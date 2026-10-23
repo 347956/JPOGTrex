@@ -16,8 +16,6 @@ namespace JPOGTrex
         private float increaseRate;
         private float decreaseRate;
         private float decreaseInterval;
-        private int visionRangeLength;
-        private int visionRangeWidth;
         private float lastSuspicionDecreaseTime;
         private float localPlayerTurnDistance;
         private float localSightCheckTimer;
@@ -33,14 +31,12 @@ namespace JPOGTrex
             Plugin.Logger.LogInfo(text);
         }
 
-        public void Configure(float maxSuspicionLevel, float increaseRate, float decreaseRate, float decreaseInterval, int visionRangeLength, int visionRangeWidth)
+        public void Configure(float maxSuspicionLevel, float increaseRate, float decreaseRate, float decreaseInterval)
         {
             MaxSuspicionLevel = maxSuspicionLevel;
             this.increaseRate = increaseRate;
             this.decreaseRate = decreaseRate;
             this.decreaseInterval = decreaseInterval;
-            this.visionRangeLength = visionRangeLength;
-            this.visionRangeWidth = visionRangeWidth;
         }
 
         public void SetPercent(float percent)
@@ -104,7 +100,7 @@ namespace JPOGTrex
             {
                 return;
             }
-            PlayerControllerB[] allPlayersInLineOfSight = trexAI.GetAllPlayersInLineOfSight(visionRangeWidth, visionRangeLength, trexAI.eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
+            PlayerControllerB[] allPlayersInLineOfSight = trexAI.GetAllPlayersInLineOfSight(trexAI.VisionRangeWidth, trexAI.VisionRangeLength, trexAI.eye, 3f, StartOfRound.Instance.collidersRoomDefaultAndFoliage);
             if (allPlayersInLineOfSight == null)
             {
                 return;
