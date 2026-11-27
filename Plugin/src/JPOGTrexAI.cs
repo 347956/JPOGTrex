@@ -66,12 +66,14 @@ namespace JPOGTrex {
             0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private float nextLocomotionSyncTime;
         private float lastFootstepTime = float.NegativeInfinity;
+        private const string UpperBodyGaitLayer = "Upper Body Gait";
         private static readonly int BreathingState = Animator.StringToHash("BreathingAnimation");
         private static readonly int IdleDetailsAllowedParameter = Animator.StringToHash("IdleDetailsAllowed");
         private static readonly int IdleBlinkParameter = Animator.StringToHash("idleBlink");
         private static readonly int IdleTailFlickParameter = Animator.StringToHash("idleTailFlick");
         private readonly System.Random idleDetailRandom = new System.Random();
         private float nextIdleDetailTime;
+        private int upperBodyGaitLayerIndex = -1;
         private bool wasStunned;
         private float speedBeforeStun;
 
@@ -220,6 +222,7 @@ namespace JPOGTrex {
             EnemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
             isDeadAnimationDone = false;
             nextIdleDetailTime = Time.time + 4f;
+            upperBodyGaitLayerIndex = creatureAnimator.GetLayerIndex(UpperBodyGaitLayer);
             if (IsOwner)
             {
                 SwitchToBehaviourState((int)State.SearchingForPlayer);
@@ -249,7 +252,7 @@ namespace JPOGTrex {
 
             ScareLocalPlayerIfTargeted();
             UpdateLocomotion();
-            UpdateIdleDetails();
+            UpdateAnimationLayers();
 
             if (!IsOwner)
             {
@@ -843,6 +846,10 @@ namespace JPOGTrex {
             Feeding.DropCarriedBodies();
             creatureAnimator.SetFloat(MoveSpeedParameter, 0f);
             creatureAnimator.SetBool(IdleDetailsAllowedParameter, false);
+            if (upperBodyGaitLayerIndex >= 0)
+            {
+                creatureAnimator.SetLayerWeight(upperBodyGaitLayerIndex, 0f);
+            }
             creatureAnimator.SetTrigger("killEnemy");
             creatureVoice.Stop();
             creatureSFX.Stop();
@@ -887,10 +894,25 @@ namespace JPOGTrex {
             creatureAnimator.SetFloat(GaitRateParameter, gaitRate);
         }
 
-        private void UpdateIdleDetails()
+        private void UpdateAnimationLayers()
         {
-            bool breathing = creatureAnimator.GetCurrentAnimatorStateInfo(0).shortNameHash == BreathingState
-                && !creatureAnimator.IsInTransition(0);
+            bool transitioning = creatureAnimator.IsInTransition(0);
+            AnimatorStateInfo action = transitioning
+                ? creatureAnimator.GetNextAnimatorStateInfo(0)
+                : creatureAnimator.GetCurrentAnimatorStateInfo(0);
+            bool goingToBreathing = action.shortNameHash == BreathingState;
+
+            if (upperBodyGaitLayerIndex >= 0)
+            {
+                // Keep the leg cycle running while the action takes over the spine and head.
+                float currentWeight = creatureAnimator.GetLayerWeight(upperBodyGaitLayerIndex);
+                float targetWeight = goingToBreathing ? 1f : 0f;
+                float fadeTime = goingToBreathing ? 0.18f : 0.1f;
+                float weight = Mathf.MoveTowards(currentWeight, targetWeight, Time.deltaTime / fadeTime);
+                creatureAnimator.SetLayerWeight(upperBodyGaitLayerIndex, weight);
+            }
+
+            bool breathing = goingToBreathing && !transitioning;
             creatureAnimator.SetBool(IdleDetailsAllowedParameter, breathing);
             if (!breathing)
             {
@@ -954,7 +976,7 @@ namespace JPOGTrex {
         }
         private void PlayFootStepAudioClip(AudioClip audioClip)
         {
-            // Walk and run can both emit a marker for the same planted foot during a blend.
+            // The synced gait layers and blended clips can share a foot-contact marker.
             if (isEnemyDead || creatureAnimator.GetFloat(MoveSpeedParameter) < 0.35f || Time.time - lastFootstepTime < 0.16f)
             {
                 return;

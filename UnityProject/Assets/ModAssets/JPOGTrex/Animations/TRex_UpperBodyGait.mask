@@ -1,0 +1,85 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!319 &31900000
+AvatarMask:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: TRex_UpperBodyGait
+  m_Mask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
+  m_Elements:
+  - m_Path:
+    m_Weight: 0
+  - m_Path: TRex
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Spine
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_Neck
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_Neck/D_Neck1
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_Neck/D_Neck1/D_Head
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_Neck/D_Neck1/D_Head/D_Ponytail2
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_Neck/D_Neck1/D_Head/D_Ponytail2/Mouth
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_Neck/D_Neck1/D_Head/Eyelids
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_Neck/Point03
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_Neck/Point04
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_UpperArm.L
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_UpperArm.L/D_Forearm.L
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_UpperArm.L/D_Forearm.L/D_Hand.L
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_UpperArm.R
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_UpperArm.R/D_Forearm.R
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/D_Spine1/D_UpperArm.R/D_Forearm.R/D_Hand.R
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Spine/Point01
+    m_Weight: 1
+  - m_Path: TRex/Scene_Root/D/D_Tail
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Tail/D_Tail1
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Tail/D_Tail1/D_Tail2
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Thigh.L
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Thigh.L/D_Calf.L
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Thigh.L/D_Calf.L/D_HorseLink.L
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Thigh.L/D_Calf.L/D_HorseLink.L/D_Foot.L
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Thigh.L/D_Calf.L/D_HorseLink.L/D_Foot.L/D_Toe0.L
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Thigh.R
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Thigh.R/D_Calf.R
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Thigh.R/D_Calf.R/D_HorseLink.R
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Thigh.R/D_Calf.R/D_HorseLink.R/D_Foot.R
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Thigh.R/D_Calf.R/D_HorseLink.R/D_Foot.R/D_Toe0.R
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/D/D_Thigh.R/Point02
+    m_Weight: 0
+  - m_Path: TRex/Scene_Root/Trex
+    m_Weight: 0
+  - m_Path: Trex_MESH
+    m_Weight: 0
