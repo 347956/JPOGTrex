@@ -23,7 +23,7 @@ This repository is a folder that goes inside the `Assets/` folder of a Lethal Co
 | `AssetBundles/` | Build output: the plugin DLL and the exported bundles. Only the `.meta` files are committed; the prefab references the DLL by the GUID in its `.meta`. |
 | `Editor/` | The Unity editor script that builds this mod's bundles (menu JPOG > Build JPOGTrex bundles). |
 | `Plugin~/` | The C# plugin. The `~` is on purpose: Unity ignores folders ending in `~`, so it doesn't try to compile the BepInEx code. |
-| `AssetSources~/` | Source files (Blender) that Unity shouldn't import. |
+| `AssetSources~/` | Blender project and individual source animation FBXs, stored outside Unity import. |
 
 ## Building 🔨
 

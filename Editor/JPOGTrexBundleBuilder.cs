@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -41,7 +42,12 @@ namespace JPOGBuild
                              && !p.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
                     .ToArray();
                 if (assets.Length == 0) throw new Exception("[JPOGTrex] No assets assigned to bundle " + bundle);
-                return new AssetBundleBuild { assetBundleName = bundle, assetNames = assets };
+                // Folder bundle labels also pick up draft clips. Keep standalone clips that
+                // the bundle's controllers, prefabs, or other runtime assets reference.
+                string[] runtimeAssets = assets.Where(p => !IsAnimationClip(p)).ToArray();
+                var dependencies = new HashSet<string>(AssetDatabase.GetDependencies(runtimeAssets));
+                string[] includedAssets = assets.Where(p => !IsAnimationClip(p) || dependencies.Contains(p)).ToArray();
+                return new AssetBundleBuild { assetBundleName = bundle, assetNames = includedAssets };
             }).ToArray();
 
             // Both bundles in one build so Unity resolves the references between them.
@@ -54,7 +60,10 @@ namespace JPOGBuild
                 Debug.Log("[JPOGTrex] Built " + bundle + ": " + new FileInfo(Path.Combine(outDir, bundle)).Length + " bytes");
             Debug.Log("[JPOGTrex] Bundles written to " + outDir + ". Run dotnet build in Plugin~ to deploy them.");
         }
-            /// <summary>
+        private static bool IsAnimationClip(string path) =>
+            path.EndsWith(".anim", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
         /// Fails the build when an enemy prefab's AI component (the MonoBehaviour with an enemyType field)
         /// has no script or no enemyType. LethalLevelLoader rejects such an enemy and its error breaks
         /// StartOfRound.Awake, so a new save throws errors everywhere.
