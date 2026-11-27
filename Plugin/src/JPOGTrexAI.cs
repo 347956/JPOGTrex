@@ -60,13 +60,19 @@ namespace JPOGTrex {
         private const float WalkBlendSpeed = 6f;
         private const float RunBlendSpeed = 12f;
         private const float MinimumGaitSpeed = 0.2f;
+        private const float TurnDeadZone = 8f;
+        private const float FullTurnSpeed = 100f;
+        private const float MaximumTurnSample = 45f;
+        private static readonly int TurnAmountParameter = Animator.StringToHash("TurnAmount");
         private static readonly int MoveSpeedParameter = Animator.StringToHash("MoveSpeed");
         private static readonly int GaitRateParameter = Animator.StringToHash("GaitRate");
-        private readonly NetworkVariable<float> locomotionSpeed = new NetworkVariable<float>(
-            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private readonly NetworkVariable<Vector2> locomotion = new NetworkVariable<Vector2>(
+            Vector2.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private float nextLocomotionSyncTime;
+        private float previousYaw;
         private float lastFootstepTime = float.NegativeInfinity;
         private const string UpperBodyGaitLayer = "Upper Body Gait";
+        private const string BodyTurnsLayer = "Body Turns";
         private static readonly int BreathingState = Animator.StringToHash("BreathingAnimation");
         private static readonly int IdleDetailsAllowedParameter = Animator.StringToHash("IdleDetailsAllowed");
         private static readonly int IdleBlinkParameter = Animator.StringToHash("idleBlink");
@@ -74,6 +80,7 @@ namespace JPOGTrex {
         private readonly System.Random idleDetailRandom = new System.Random();
         private float nextIdleDetailTime;
         private int upperBodyGaitLayerIndex = -1;
+        private int bodyTurnsLayerIndex = -1;
         private bool wasStunned;
         private float speedBeforeStun;
 
@@ -223,6 +230,8 @@ namespace JPOGTrex {
             isDeadAnimationDone = false;
             nextIdleDetailTime = Time.time + 4f;
             upperBodyGaitLayerIndex = creatureAnimator.GetLayerIndex(UpperBodyGaitLayer);
+            bodyTurnsLayerIndex = creatureAnimator.GetLayerIndex(BodyTurnsLayer);
+            previousYaw = transform.eulerAngles.y;
             if (IsOwner)
             {
                 SwitchToBehaviourState((int)State.SearchingForPlayer);
@@ -845,11 +854,9 @@ namespace JPOGTrex {
             //Release any bodies so they can be picked up or teleported again
             Feeding.DropCarriedBodies();
             creatureAnimator.SetFloat(MoveSpeedParameter, 0f);
+            creatureAnimator.SetFloat(TurnAmountParameter, 0f);
             creatureAnimator.SetBool(IdleDetailsAllowedParameter, false);
-            if (upperBodyGaitLayerIndex >= 0)
-            {
-                creatureAnimator.SetLayerWeight(upperBodyGaitLayerIndex, 0f);
-            }
+            SetUpperBodyMotionWeight(0f);
             creatureAnimator.SetTrigger("killEnemy");
             creatureVoice.Stop();
             creatureSFX.Stop();
@@ -865,28 +872,42 @@ namespace JPOGTrex {
                 return;
             }
 
-            float speed = locomotionSpeed.Value;
+            float yaw = transform.eulerAngles.y;
+            float yawDelta = Mathf.DeltaAngle(previousYaw, yaw);
+            previousYaw = yaw;
+            float deltaTime = Time.deltaTime;
+
+            Vector2 movement = locomotion.Value;
             if (IsOwner)
             {
                 Vector3 velocity = agent.enabled && agent.isOnNavMesh && stunNormalizedTimer <= 0f
                     ? agent.velocity
                     : Vector3.zero;
-                speed = new Vector2(velocity.x, velocity.z).magnitude;
+                float speed = new Vector2(velocity.x, velocity.z).magnitude;
                 if (speed < MinimumGaitSpeed)
                 {
                     speed = 0f;
                 }
 
-                // Send quantized speeds at most ten times per second, with an immediate stop.
-                float syncedSpeed = Mathf.Round(speed * 4f) / 4f;
-                if (syncedSpeed != locomotionSpeed.Value && (syncedSpeed == 0f || Time.time >= nextLocomotionSyncTime))
+                float turnAmount = 0f;
+                if (speed > 0f && deltaTime > 0f && Mathf.Abs(yawDelta) < MaximumTurnSample)
                 {
-                    locomotionSpeed.Value = syncedSpeed;
+                    float yawSpeed = yawDelta / deltaTime;
+                    turnAmount = Mathf.Sign(yawSpeed) * Mathf.InverseLerp(TurnDeadZone, FullTurnSpeed, Mathf.Abs(yawSpeed));
+                }
+                movement = new Vector2(speed, turnAmount);
+
+                // Share one sample for speed and turn, with an immediate update when movement stops.
+                Vector2 synced = new Vector2(Mathf.Round(speed * 4f) / 4f, Mathf.Round(turnAmount * 10f) / 10f);
+                if (synced != locomotion.Value && (synced.x == 0f || Time.time >= nextLocomotionSyncTime))
+                {
+                    locomotion.Value = synced;
                     nextLocomotionSyncTime = Time.time + 0.1f;
                 }
             }
 
-            creatureAnimator.SetFloat(MoveSpeedParameter, speed, 0.065f, Time.deltaTime);
+            creatureAnimator.SetFloat(MoveSpeedParameter, movement.x, 0.065f, deltaTime);
+            creatureAnimator.SetFloat(TurnAmountParameter, movement.y, 0.1f, deltaTime);
             float blendedSpeed = creatureAnimator.GetFloat(MoveSpeedParameter);
             float gaitRate = blendedSpeed < WalkBlendSpeed
                 ? Mathf.Max(0.33f, blendedSpeed / WalkBlendSpeed)
@@ -909,7 +930,7 @@ namespace JPOGTrex {
                 float targetWeight = goingToBreathing ? 1f : 0f;
                 float fadeTime = goingToBreathing ? 0.18f : 0.1f;
                 float weight = Mathf.MoveTowards(currentWeight, targetWeight, Time.deltaTime / fadeTime);
-                creatureAnimator.SetLayerWeight(upperBodyGaitLayerIndex, weight);
+                SetUpperBodyMotionWeight(weight);
             }
 
             bool breathing = goingToBreathing && !transitioning;
@@ -935,6 +956,19 @@ namespace JPOGTrex {
 
             nextIdleDetailTime = Time.time + 4f + (float)idleDetailRandom.NextDouble() * 6f;
             DoAnimationServerRpc(stationary && idleDetailRandom.Next(3) == 0 ? "idleTailFlick" : "idleBlink");
+        }
+
+        private void SetUpperBodyMotionWeight(float weight)
+        {
+            if (upperBodyGaitLayerIndex >= 0)
+            {
+                creatureAnimator.SetLayerWeight(upperBodyGaitLayerIndex, weight);
+            }
+
+            if (bodyTurnsLayerIndex >= 0)
+            {
+                creatureAnimator.SetLayerWeight(bodyTurnsLayerIndex, weight);
+            }
         }
 
         //Effects on player
