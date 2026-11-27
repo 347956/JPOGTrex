@@ -48,7 +48,7 @@ namespace JPOGTrex {
         private readonly float knockbackUpwardForce = 5f;
         private bool isDeadAnimationDone;
         private float defaultSpeed = 6f;
-        //Chase speed = default speed * this. Above 12 the faster run animation is used
+        // Maximum chase speed before the chase helper applies braking.
         private readonly float chaseSpeedMultiplier = 2.25f;
         private State previousState = State.Idle;
         private bool roaring;
@@ -57,7 +57,15 @@ namespace JPOGTrex {
         private bool sniffing;
         private Coroutine? sniffCoroutine;
         private Coroutine? roarCoroutine;
-        private float previousSpeed;
+        private const float WalkBlendSpeed = 6f;
+        private const float RunBlendSpeed = 12f;
+        private const float MinimumGaitSpeed = 0.2f;
+        private static readonly int MoveSpeedParameter = Animator.StringToHash("MoveSpeed");
+        private static readonly int GaitRateParameter = Animator.StringToHash("GaitRate");
+        private readonly NetworkVariable<float> locomotionSpeed = new NetworkVariable<float>(
+            0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private float nextLocomotionSyncTime;
+        private float lastFootstepTime = float.NegativeInfinity;
         private bool wasStunned;
         private float speedBeforeStun;
 
@@ -207,7 +215,6 @@ namespace JPOGTrex {
             isDeadAnimationDone = false;
             if (IsOwner)
             {
-                SetWalkingAnimationServerRpc(defaultSpeed);
                 SwitchToBehaviourState((int)State.SearchingForPlayer);
             }
         }
@@ -234,6 +241,7 @@ namespace JPOGTrex {
             }
 
             ScareLocalPlayerIfTargeted();
+            UpdateLocomotion();
 
             if (!IsOwner)
             {
@@ -253,14 +261,12 @@ namespace JPOGTrex {
                     wasStunned = true;
                     speedBeforeStun = agent.speed;
                     agent.speed = 0f;
-                    SetWalkingAnimationServerRpc(agent.speed);
                 }
             }
             else if (wasStunned)
             {
                 wasStunned = false;
                 agent.speed = speedBeforeStun;
-                SetWalkingAnimationServerRpc(agent.speed);
             }
             //Steering runs every frame while chasing instead of on the AI interval, so the T-rex doesn't head for an outdated position
             //Also during the bite, otherwise a walking player steps out of reach before the jaws close
@@ -290,7 +296,6 @@ namespace JPOGTrex {
                         Grab.ResetMisses();
                         agent.speed = defaultSpeed;
                         agent.autoBraking = true;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         StartSearch(transform.position);
                         previousState = State.SearchingForPlayer;
                     }
@@ -320,7 +325,6 @@ namespace JPOGTrex {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [SpottedPlayer]");
                         agent.speed = 2f;
                         sniffing = true;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         sniffCoroutine = StartCoroutine(FoundPlayer());
                         isSniffingStarted = true;
                         previousState = State.SpottedPlayer;
@@ -333,12 +337,11 @@ namespace JPOGTrex {
                     break;
 
                 case (int)State.Roaring:
-                    //Because the T-rex's walking animation gets set in the spotted player phase we do not want to set it again to avoid bugging animations
+                    // Keep the slow movement from the spotted phase when it leads into the roar.
                     if(previousState != State.SpottedPlayer && previousState != State.Roaring)
                     {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [Roaring]");
                         agent.speed = 0f;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.Roaring;
                     }
                     if (previousState != State.Roaring && !isRoaringStarted)
@@ -363,7 +366,6 @@ namespace JPOGTrex {
                         previousState = State.ChasingPlayer;
                         //The chase helper steers instead, EnemyAI would otherwise overwrite its destination every frame
                         movingTowardsTargetPlayer = false;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         Targeting.ResetLostPlayer();
                         //The chase helper slows the T-rex down near the target instead, braking makes it slow down far too early
                         agent.autoBraking = false;
@@ -448,7 +450,6 @@ namespace JPOGTrex {
                         {
                             LogIfDebugBuild("JPOGTrex: Hit connect, Switching to GrabbingPlayer");
                             agent.speed = defaultSpeed / 2;
-                            SetWalkingAnimationServerRpc(agent.speed);
                             SwitchToBehaviourState((int)State.GrabbingPlayer);
                         }
                         else if (!Grab.InGrabAttack)
@@ -480,7 +481,6 @@ namespace JPOGTrex {
                         agent.speed = 0;
                         previousState = State.GrabbingPlayer;
                         movingTowardsTargetPlayer = false;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         Feeding.BeginShakeLocal();
                         ShakingBodiesServerRpc();
                     }
@@ -508,7 +508,6 @@ namespace JPOGTrex {
                     {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [EatingPlayer]");
                         agent.speed = 0f;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.EatingPlayer;
                         if (Feeding.IsHungry && !Feeding.IsEating)
                         {
@@ -689,12 +688,6 @@ namespace JPOGTrex {
         }
 
         [ServerRpc(RequireOwnership = false)]
-        private void SetWalkingAnimationServerRpc(float speed)
-        {
-            SetWalkingAnimation(speed);
-        }
-
-        [ServerRpc(RequireOwnership = false)]
         public void DoAnimationServerRpc(string animationName)
         {
             DoAnimationClientRpc(animationName);
@@ -860,10 +853,7 @@ namespace JPOGTrex {
             StopAllCoroutines();
             //Release any bodies so they can be picked up or teleported again
             Feeding.DropCarriedBodies();
-            if (IsOwner)
-            {
-                SetWalkingAnimationServerRpc(0f);
-            }
+            creatureAnimator.SetFloat(MoveSpeedParameter, 0f);
             creatureAnimator.SetTrigger("killEnemy");
             creatureVoice.Stop();
             creatureSFX.Stop();
@@ -872,37 +862,40 @@ namespace JPOGTrex {
 
         //Some Utility stuff
 
-        //Simple method that sets the walking animation of the T-rex based on it's speed.
-        //This way a more slowed down walking animation or sped up running animation can be applied.
-        //Should be called after the speed of the current behaviour state has been set.
-        //Runs on the server.
-        private void SetWalkingAnimation(float currentSpeed)
+        private void UpdateLocomotion()
         {
-            if (currentSpeed == previousSpeed)
+            if (!IsSpawned)
             {
                 return;
             }
-            previousSpeed = currentSpeed;
-            if (currentSpeed == 0f)
+
+            float speed = locomotionSpeed.Value;
+            if (IsOwner)
             {
-                DoAnimationClientRpc("stopWalk");
+                Vector3 velocity = agent.enabled && agent.isOnNavMesh && stunNormalizedTimer <= 0f
+                    ? agent.velocity
+                    : Vector3.zero;
+                speed = new Vector2(velocity.x, velocity.z).magnitude;
+                if (speed < MinimumGaitSpeed)
+                {
+                    speed = 0f;
+                }
+
+                // Send quantized speeds at most ten times per second, with an immediate stop.
+                float syncedSpeed = Mathf.Round(speed * 4f) / 4f;
+                if (syncedSpeed != locomotionSpeed.Value && (syncedSpeed == 0f || Time.time >= nextLocomotionSyncTime))
+                {
+                    locomotionSpeed.Value = syncedSpeed;
+                    nextLocomotionSyncTime = Time.time + 0.1f;
+                }
             }
-            else if (currentSpeed <= 2f)
-            {
-                DoAnimationClientRpc("slowDown");
-            }
-            else if (currentSpeed <= 6f)
-            {
-                DoAnimationClientRpc("startWalk");
-            }
-            else if (currentSpeed <= 12f)
-            {
-                DoAnimationClientRpc("chasingRun");
-            }
-            else
-            {
-                DoAnimationClientRpc("speedUp");
-            }
+
+            creatureAnimator.SetFloat(MoveSpeedParameter, speed, 0.065f, Time.deltaTime);
+            float blendedSpeed = creatureAnimator.GetFloat(MoveSpeedParameter);
+            float gaitRate = blendedSpeed < WalkBlendSpeed
+                ? Mathf.Max(0.33f, blendedSpeed / WalkBlendSpeed)
+                : Mathf.Clamp(blendedSpeed / RunBlendSpeed, 1f, 1.35f);
+            creatureAnimator.SetFloat(GaitRateParameter, gaitRate);
         }
 
         //Effects on player
@@ -936,6 +929,13 @@ namespace JPOGTrex {
         }
         private void PlayFootStepAudioClip(AudioClip audioClip)
         {
+            // Walk and run can both emit a marker for the same planted foot during a blend.
+            if (isEnemyDead || creatureAnimator.GetFloat(MoveSpeedParameter) < 0.35f || Time.time - lastFootstepTime < 0.16f)
+            {
+                return;
+            }
+
+            lastFootstepTime = Time.time;
             creatureSFX.PlayOneShot(audioClip);
             WalkieTalkie.TransmitOneShotAudio(creatureSFX, audioClip);
             ShakeCamera();
