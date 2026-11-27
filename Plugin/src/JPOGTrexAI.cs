@@ -93,6 +93,14 @@ namespace JPOGTrex {
         private static readonly int HitRecoilParameter = Animator.StringToHash(HitRecoilTrigger);
         private static readonly int HitRecoilAllowedParameter = Animator.StringToHash("HitRecoilAllowed");
         private float nextHitRecoilTime;
+        private const float MinimumKnockdownSeconds = 2.6f;
+        private const float KnockdownRecoverySeconds = 1.55f;
+        private static readonly int KnockdownTag = Animator.StringToHash("Knockdown");
+        private static readonly int KnockdownSideParameter = Animator.StringToHash("KnockdownSide");
+        private static readonly int KnockdownActiveParameter = Animator.StringToHash("KnockdownActive");
+        private readonly NetworkVariable<int> knockdownSide = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private bool playingKnockdown;
         private bool wasStunned;
         private float speedBeforeStun;
 
@@ -274,6 +282,7 @@ namespace JPOGTrex {
             }
 
             ScareLocalPlayerIfTargeted();
+            UpdateKnockdown();
             UpdateLocomotion();
             UpdateAnimationLayers();
 
@@ -284,11 +293,11 @@ namespace JPOGTrex {
 
             var state = currentBehaviourStateIndex;
             UpdateFearTarget(state);
-            if (targetPlayer != null && (state == (int)State.GrabPlayer || state == (int)State.GrabbedPlayer || state == (int)State.GrabbingPlayer || state == (int)State.EatingPlayer || state == (int)State.SpottedPlayer)) {
+            if (!playingKnockdown && targetPlayer != null && (state == (int)State.GrabPlayer || state == (int)State.GrabbedPlayer || state == (int)State.GrabbingPlayer || state == (int)State.EatingPlayer || state == (int)State.SpottedPlayer)) {
                 turnCompass.LookAt(targetPlayer.gameplayCamera.transform.position);
                 transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(new Vector3(0f, turnCompass.eulerAngles.y, 0f)), 4f * Time.deltaTime);
             }
-            if (stunNormalizedTimer > 0f)
+            if (stunNormalizedTimer > 0f || playingKnockdown)
             {
                 if (!wasStunned)
                 {
@@ -313,7 +322,7 @@ namespace JPOGTrex {
         public override void DoAIInterval() {
 
             base.DoAIInterval();
-            if (isEnemyDead || StartOfRound.Instance.allPlayersDead) {
+            if (isEnemyDead || StartOfRound.Instance.allPlayersDead || playingKnockdown) {
                 return;
             };
 
@@ -639,7 +648,7 @@ namespace JPOGTrex {
 
         public bool CheckIfInNotAnimation()
         {
-            return !Grab.IsBusy && !Feeding.IsEating && !EnemyAttack.IsAttacking;
+            return !playingKnockdown && !Grab.IsBusy && !Feeding.IsEating && !EnemyAttack.IsAttacking;
         }
 
         internal void ResetHitTimer()
@@ -705,7 +714,7 @@ namespace JPOGTrex {
         [ClientRpc]
         private void DoAnimationClientRpc(string animationName, bool playedOnOwner)
         {
-            if (isEnemyDead || (playedOnOwner && IsOwner))
+            if (isEnemyDead || playingKnockdown || knockdownSide.Value != 0 || (playedOnOwner && IsOwner))
             {
                 return;
             }
@@ -881,6 +890,7 @@ namespace JPOGTrex {
             creatureAnimator.SetFloat(TurnAmountParameter, 0f);
             creatureAnimator.SetBool(IdleDetailsAllowedParameter, false);
             creatureAnimator.SetBool(HitRecoilAllowedParameter, false);
+            creatureAnimator.SetBool(KnockdownActiveParameter, true);
             SetUpperBodyMotionWeight(0f);
             if (woundedPostureLayerIndex >= 0)
             {
@@ -893,6 +903,46 @@ namespace JPOGTrex {
         }
 
         //Some Utility stuff
+
+        private void UpdateKnockdown()
+        {
+            if (!IsSpawned)
+            {
+                return;
+            }
+
+            AnimatorStateInfo current = creatureAnimator.GetCurrentAnimatorStateInfo(0);
+            bool transitioning = creatureAnimator.IsInTransition(0);
+            int side = knockdownSide.Value;
+            if (IsOwner)
+            {
+                float remainingStunSeconds = stunNormalizedTimer * enemyType.stunTimeMultiplier;
+                if (side != 0 && remainingStunSeconds <= KnockdownRecoverySeconds)
+                {
+                    side = 0;
+                }
+                else if (side == 0 && !wasStunned && remainingStunSeconds >= MinimumKnockdownSeconds
+                    && !transitioning && current.shortNameHash == BreathingState
+                    && !sniffing && !roaring && CheckIfInNotAnimation())
+                {
+                    // Fall away from the source of the stun when it is known.
+                    bool fromRight = stunnedByPlayer != null
+                        ? Vector3.Dot(transform.right, stunnedByPlayer.transform.position - transform.position) >= 0f
+                        : thisEnemyIndex % 2 == 0;
+                    side = fromRight ? -1 : 1;
+                }
+
+                if (side != knockdownSide.Value)
+                {
+                    knockdownSide.Value = side;
+                }
+            }
+
+            playingKnockdown = side != 0 || current.tagHash == KnockdownTag
+                || (transitioning && creatureAnimator.GetNextAnimatorStateInfo(0).tagHash == KnockdownTag);
+            creatureAnimator.SetInteger(KnockdownSideParameter, side);
+            creatureAnimator.SetBool(KnockdownActiveParameter, playingKnockdown);
+        }
 
         private void UpdateLocomotion()
         {
@@ -909,7 +959,7 @@ namespace JPOGTrex {
             Vector2 movement = locomotion.Value;
             if (IsOwner)
             {
-                Vector3 velocity = agent.enabled && agent.isOnNavMesh && stunNormalizedTimer <= 0f
+                Vector3 velocity = agent.enabled && agent.isOnNavMesh && stunNormalizedTimer <= 0f && !playingKnockdown
                     ? agent.velocity
                     : Vector3.zero;
                 float speed = new Vector2(velocity.x, velocity.z).magnitude;
