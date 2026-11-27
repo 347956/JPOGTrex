@@ -66,6 +66,12 @@ namespace JPOGTrex {
             0f, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private float nextLocomotionSyncTime;
         private float lastFootstepTime = float.NegativeInfinity;
+        private static readonly int BreathingState = Animator.StringToHash("BreathingAnimation");
+        private static readonly int IdleDetailsAllowedParameter = Animator.StringToHash("IdleDetailsAllowed");
+        private static readonly int IdleBlinkParameter = Animator.StringToHash("idleBlink");
+        private static readonly int IdleTailFlickParameter = Animator.StringToHash("idleTailFlick");
+        private readonly System.Random idleDetailRandom = new System.Random();
+        private float nextIdleDetailTime;
         private bool wasStunned;
         private float speedBeforeStun;
 
@@ -213,6 +219,7 @@ namespace JPOGTrex {
             timeSinceHittingLocalPlayer = 0;
             EnemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
             isDeadAnimationDone = false;
+            nextIdleDetailTime = Time.time + 4f;
             if (IsOwner)
             {
                 SwitchToBehaviourState((int)State.SearchingForPlayer);
@@ -242,6 +249,7 @@ namespace JPOGTrex {
 
             ScareLocalPlayerIfTargeted();
             UpdateLocomotion();
+            UpdateIdleDetails();
 
             if (!IsOwner)
             {
@@ -524,33 +532,8 @@ namespace JPOGTrex {
                     break;
 
                 case (int)State.Idle:
-                    int rndIdle = EnemyRandom.Next(4);
-                    if (rndIdle == 1)
-                    {
-                        LogIfDebugBuild("JPOGTrex: Entered behaviourState [Idle]");
-                        agent.speed = 1f;
-                        DoAnimationServerRpc("lookingIdle");
-                        previousState = State.Idle;
-                    }
-                    else if (rndIdle == 2)
-                    {
-                        agent.speed = 1f;
-                        DoAnimationServerRpc("sniffingIdle");
-                        previousState = State.Idle;
-                    }
-                    else if (rndIdle == 3)
-                    {
-                        agent.speed = 0f;
-                        DoAnimationServerRpc("eatingIdle01");
-                        previousState = State.Idle;
-                        SwitchToBehaviourState((int)State.Eating);
-                    }
-                    break;
-
                 case (int)State.Eating:
-                    DoAnimationServerRpc("eatingIdle02");
-                    previousState = State.Idle;
-                    SwitchToBehaviourState((int)State.Eating);
+                    SwitchToBehaviourState((int)State.SearchingForPlayer);
                     break;
 
                 default:
@@ -859,6 +842,7 @@ namespace JPOGTrex {
             //Release any bodies so they can be picked up or teleported again
             Feeding.DropCarriedBodies();
             creatureAnimator.SetFloat(MoveSpeedParameter, 0f);
+            creatureAnimator.SetBool(IdleDetailsAllowedParameter, false);
             creatureAnimator.SetTrigger("killEnemy");
             creatureVoice.Stop();
             creatureSFX.Stop();
@@ -901,6 +885,34 @@ namespace JPOGTrex {
                 ? Mathf.Max(0.33f, blendedSpeed / WalkBlendSpeed)
                 : Mathf.Clamp(blendedSpeed / RunBlendSpeed, 1f, 1.35f);
             creatureAnimator.SetFloat(GaitRateParameter, gaitRate);
+        }
+
+        private void UpdateIdleDetails()
+        {
+            bool breathing = creatureAnimator.GetCurrentAnimatorStateInfo(0).shortNameHash == BreathingState
+                && !creatureAnimator.IsInTransition(0);
+            creatureAnimator.SetBool(IdleDetailsAllowedParameter, breathing);
+            if (!breathing)
+            {
+                creatureAnimator.ResetTrigger(IdleBlinkParameter);
+                creatureAnimator.ResetTrigger(IdleTailFlickParameter);
+                return;
+            }
+
+            bool stationary = creatureAnimator.GetFloat(MoveSpeedParameter) < 0.35f;
+            if (!stationary)
+            {
+                creatureAnimator.ResetTrigger(IdleTailFlickParameter);
+            }
+
+            if (!IsSpawned || !IsOwner || Time.time < nextIdleDetailTime
+                || currentBehaviourStateIndex != (int)State.SearchingForPlayer || !CheckIfInNotAnimation())
+            {
+                return;
+            }
+
+            nextIdleDetailTime = Time.time + 4f + (float)idleDetailRandom.NextDouble() * 6f;
+            DoAnimationServerRpc(stationary && idleDetailRandom.Next(3) == 0 ? "idleTailFlick" : "idleBlink");
         }
 
         //Effects on player
