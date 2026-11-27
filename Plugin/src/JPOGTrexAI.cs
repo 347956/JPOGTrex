@@ -688,14 +688,19 @@ namespace JPOGTrex {
         }
 
         [ServerRpc(RequireOwnership = false)]
-        public void DoAnimationServerRpc(string animationName)
+        public void DoAnimationServerRpc(string animationName, bool playedOnOwner = false)
         {
-            DoAnimationClientRpc(animationName);
+            DoAnimationClientRpc(animationName, playedOnOwner);
         }
 
         [ClientRpc]
-        public void DoAnimationClientRpc(string animationName)
+        private void DoAnimationClientRpc(string animationName, bool playedOnOwner)
         {
+            if (isEnemyDead || (playedOnOwner && IsOwner))
+            {
+                return;
+            }
+
             LogIfDebugBuild($"Animation: {animationName}");
             creatureAnimator.SetTrigger(animationName);
         }
@@ -922,6 +927,14 @@ namespace JPOGTrex {
         }
 
         //These methods are called during certain frames in the animation
+        private void OnEnemyBiteContact()
+        {
+            if (IsOwner && !isEnemyDead)
+            {
+                EnemyAttack.HitAtContact();
+            }
+        }
+
         private void PlayAudioClip(AudioClip audioClip)
         {
             creatureVoice.PlayOneShot(audioClip);
@@ -959,7 +972,7 @@ namespace JPOGTrex {
             previousState = State.SpottedPlayer;
             LogIfDebugBuild("JPOGTrex: Sniffing");
             DoAnimationServerRpc("foundPlayer");
-            yield return new WaitForSeconds(1.3f);
+            yield return new WaitForSeconds(1.35f);
             LogIfDebugBuild("JPOGTrex: Sniffing finished");
             sniffing = false;
         }
@@ -970,8 +983,8 @@ namespace JPOGTrex {
             previousState = State.SpottedPlayer;
             LogIfDebugBuild($"JPOGTrex: Roaring [{animationNumber}]");
             DoAnimationServerRpc("beginChase0" + animationNumber);
-            // Adjust wait time based on animationNumber
-            float waitTime = animationNumber == 3 ? 3.6f : 3.1f;
+            // The third roar plays at 0.8x speed in the controller.
+            float waitTime = animationNumber == 3 ? 4.6f : 3.2f;
             yield return new WaitForSeconds(waitTime);
             LogIfDebugBuild("JPOGTrex: Roaring finished");
             roaring = false;

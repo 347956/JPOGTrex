@@ -7,8 +7,9 @@ namespace JPOGTrex
     internal class TrexEnemyAttackHelper
     {
         private readonly JPOGTrexAI trexAI;
-        private readonly float attackDelay = 1.2f;
+        private const float AttackRecoverySeconds = 1.2f;
         private EnemyAI? targetEntity;
+        private int pendingDamage;
 
         public bool IsAttacking { get; private set; }
 
@@ -20,7 +21,7 @@ namespace JPOGTrex
         //Owner only
         public void TryAttack(EnemyAI collidedEnemy)
         {
-            if (collidedEnemy.isEnemyDead)
+            if (IsAttacking || collidedEnemy.isEnemyDead)
             {
                 return;
             }
@@ -39,13 +40,29 @@ namespace JPOGTrex
         private IEnumerator AttackEnemy(string animationName, int damage)
         {
             IsAttacking = true;
-            trexAI.DoAnimationServerRpc(animationName);
-            yield return new WaitForSeconds(attackDelay);
+            pendingDamage = damage;
+            // Evaluate the contact event locally even if the broadcast is delayed.
+            trexAI.creatureAnimator.SetTrigger(animationName);
+            trexAI.DoAnimationServerRpc(animationName, playedOnOwner: true);
+            yield return new WaitForSeconds(AttackRecoverySeconds);
+            pendingDamage = 0;
+            targetEntity = null;
+            IsAttacking = false;
+        }
+
+        public void HitAtContact()
+        {
+            if (pendingDamage == 0)
+            {
+                return;
+            }
+
+            int damage = pendingDamage;
+            pendingDamage = 0;
             if (targetEntity != null && !targetEntity.isEnemyDead)
             {
                 targetEntity.HitEnemyOnLocalClient(damage, playHitSFX: true);
             }
-            IsAttacking = false;
         }
     }
 }

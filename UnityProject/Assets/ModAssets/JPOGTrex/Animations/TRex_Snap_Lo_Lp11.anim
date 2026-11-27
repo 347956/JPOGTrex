@@ -5261,9 +5261,15 @@ AnimationClip:
   m_Events:
   - time: 0
     functionName: PlayAudioClip
-    data: 
-    objectReferenceParameter: {fileID: 8300000, guid: cb057adbffacdef4faa6a20c9ac95310,
-      type: 3}
+    data:
+    objectReferenceParameter: {fileID: 8300000, guid: cb057adbffacdef4faa6a20c9ac95310, type: 3}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.6666667
+    functionName: OnEnemyBiteContact
+    data:
+    objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
