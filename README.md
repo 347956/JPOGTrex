@@ -66,6 +66,9 @@ It should give some tips when encountering problems in this project or your own.
 - Hit registration should be done server side: "[ServerRpc] > method()", to prevent latency of "[ServerRpc] > [ClientRpc] > method()" effecting the hit registration.
 
 ### Animations 
+
+For host/client playtests, set `AnimationPlaytestLogging = true` in the `[Debug]` section of the JPOGTrex BepInEx config on both peers. Search each peer’s `BepInEx/LogOutput.log` for `[Animation playtest]`. Match entries by T-Rex network ID and server time. The trace records actions, bite outcomes, and stun and recovery decisions, with one footstep entry per movement bout.
+
 - Most animation in this project are started from the "any event". I am not sure if this is best practice, but it makes animating a lot easier.
 - Coroutine can be can be used to execute code over frames. Usefull for waiting on animaitons to finish or executing logic at certain points during the animations.
 - Enabling "Has Exit Time" makes animation B wait for animation A to finish in a transition of A > B.

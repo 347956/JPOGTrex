@@ -41,10 +41,18 @@ namespace JPOGTrex
         {
             IsAttacking = true;
             pendingDamage = damage;
+            if (trexAI.AnimationPlaytestLogging && targetEntity != null)
+            {
+                trexAI.LogAnimation($"Enemy bite requested ({animationName}) against {targetEntity.enemyType.enemyName} {targetEntity.NetworkObjectId}");
+            }
             // Evaluate the contact event locally even if the broadcast is delayed.
             trexAI.creatureAnimator.SetTrigger(animationName);
             trexAI.DoAnimationServerRpc(animationName, playedOnOwner: true);
             yield return new WaitForSeconds(AttackRecoverySeconds);
+            if (pendingDamage != 0)
+            {
+                trexAI.LogAnimation($"Enemy bite timed out after {AttackRecoverySeconds:F1}s without a contact marker ({animationName})");
+            }
             pendingDamage = 0;
             targetEntity = null;
             IsAttacking = false;
@@ -54,6 +62,7 @@ namespace JPOGTrex
         {
             if (pendingDamage == 0)
             {
+                trexAI.LogAnimation("Enemy bite contact marker ignored (no damage pending)");
                 return;
             }
 
@@ -61,7 +70,12 @@ namespace JPOGTrex
             pendingDamage = 0;
             if (targetEntity != null && !targetEntity.isEnemyDead)
             {
+                trexAI.LogAnimation($"Enemy bite contacted target {targetEntity.NetworkObjectId} (dispatching {damage} damage)");
                 targetEntity.HitEnemyOnLocalClient(damage, playHitSFX: true);
+            }
+            else
+            {
+                trexAI.LogAnimation("Enemy bite contact marker received (target was dead or missing)");
             }
         }
     }

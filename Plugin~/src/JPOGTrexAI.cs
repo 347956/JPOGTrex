@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using GameNetcodeStuff;
 using JPOGTrex.Configuration;
@@ -121,6 +122,14 @@ namespace JPOGTrex {
         private bool wasStunned;
         private float speedBeforeStun;
 
+        private int lastLoggedActionState;
+        private bool loggedFootstepForMovement;
+        private bool lastLoggedWoundedPosture;
+        private bool lastLoggedObserverStun;
+        private List<AnimatorClipInfo>? loggedActionClips;
+
+        internal bool AnimationPlaytestLogging => Plugin.BoundConfig.AnimationPlaytestLogging.Value;
+
         ThreatType IVisibleThreat.type => ThreatType.ForestGiant;
 
         public int GetThreatLevel(Vector3 seenByPosition)
@@ -200,6 +209,17 @@ namespace JPOGTrex {
             Plugin.Logger.LogInfo(text);
         }
 
+        internal void LogAnimation(string message)
+        {
+            if (!AnimationPlaytestLogging || !IsSpawned || NetworkManager == null)
+            {
+                return;
+            }
+
+            Plugin.Logger.LogInfo($"[Animation playtest] T-Rex {NetworkObjectId} | peer {NetworkManager.LocalClientId} "
+                + $"| owner {OwnerClientId} | {NetworkManager.ServerTime.Time:F2}s | {message}");
+        }
+
         //These objects are only used for their position and shape, the bite does its own check with them.
         //Their colliders would otherwise act as triggers on the Enemies layer.
         private void DisableUnusedColliders()
@@ -268,6 +288,7 @@ namespace JPOGTrex {
             nextIdleDetailTime = Time.time + 4f;
             legGaitLayerIndex = creatureAnimator.GetLayerIndex(LegGaitLayer);
             footIk = TrexFootIk.Create(creatureAnimator);
+            LogAnimation(footIk != null && legGaitLayerIndex >= 0 ? "Foot IK ready" : "Foot IK unavailable on this rig");
             upperBodyGaitLayerIndex = creatureAnimator.GetLayerIndex(UpperBodyGaitLayer);
             bodyTurnsLayerIndex = creatureAnimator.GetLayerIndex(BodyTurnsLayer);
             woundedPostureLayerIndex = creatureAnimator.GetLayerIndex(WoundedPostureLayer);
@@ -330,6 +351,7 @@ namespace JPOGTrex {
             {
                 wasStunned = false;
                 agent.speed = speedBeforeStun;
+                LogAnimation("Stun and knockdown recovery cleared, movement restored");
             }
             //Steering runs every frame while chasing instead of on the AI interval, so the T-rex doesn't head for an outdated position
             //Also during the bite, otherwise a walking player steps out of reach before the jaws close
@@ -341,6 +363,11 @@ namespace JPOGTrex {
 
         private void LateUpdate()
         {
+            if (AnimationPlaytestLogging && IsSpawned && creatureAnimator.isActiveAndEnabled)
+            {
+                LogAnimationPlayback();
+            }
+
             if (footIk == null || legGaitLayerIndex < 0)
             {
                 return;
@@ -359,6 +386,34 @@ namespace JPOGTrex {
             float phase = creatureAnimator.GetCurrentAnimatorStateInfo(legGaitLayerIndex).normalizedTime;
             footIk.Apply(phase, creatureAnimator.GetFloat(MoveSpeedParameter), creatureAnimator.GetFloat(TurnAmountParameter),
                 normalGait, Time.deltaTime);
+        }
+
+        private void LogAnimationPlayback()
+        {
+            if (creatureAnimator.GetFloat(MoveSpeedParameter) < 0.35f && Time.time - lastFootstepTime >= 0.75f)
+            {
+                loggedFootstepForMovement = false;
+            }
+
+            bool observingStun = !IsOwner && !isEnemyDead && stunNormalizedTimer > 0f;
+            if (observingStun && !lastLoggedObserverStun)
+            {
+                LogAnimation($"Stun observed ({stunNormalizedTimer * enemyType.stunTimeMultiplier:F2}s remaining)");
+            }
+            lastLoggedObserverStun = observingStun;
+
+            int state = creatureAnimator.GetCurrentAnimatorStateInfo(0).fullPathHash;
+            if (state == 0 || state == lastLoggedActionState)
+            {
+                return;
+            }
+
+            lastLoggedActionState = state;
+            loggedActionClips ??= new List<AnimatorClipInfo>();
+            creatureAnimator.GetCurrentAnimatorClipInfo(0, loggedActionClips);
+            AnimationClip? clip = loggedActionClips.Count > 0 ? loggedActionClips[0].clip : null;
+            string action = clip != null ? clip.name : $"state {state}";
+            LogAnimation($"Base animation entered {action}");
         }
 
         public override void DoAIInterval() {
@@ -761,7 +816,14 @@ namespace JPOGTrex {
                 return;
             }
 
-            LogIfDebugBuild($"Animation: {animationName}");
+            if (AnimationPlaytestLogging && animationName != "idleBlink")
+            {
+                LogAnimation($"Animator trigger {animationName}");
+            }
+            else
+            {
+                LogIfDebugBuild($"Animation: {animationName}");
+            }
             creatureAnimator.SetTrigger(animationName);
         }
 
@@ -939,6 +1001,7 @@ namespace JPOGTrex {
             {
                 creatureAnimator.SetLayerWeight(woundedPostureLayerIndex, 0f);
             }
+            LogAnimation($"Death trigger sent (knockdown active={playingKnockdown}, side={knockdownSide.Value})");
             creatureAnimator.SetTrigger("killEnemy");
             creatureVoice.Stop();
             creatureSFX.Stop();
@@ -975,6 +1038,14 @@ namespace JPOGTrex {
                     side = fromRight ? -1 : 1;
                 }
 
+                if (AnimationPlaytestLogging && !wasStunned && remainingStunSeconds > 0f)
+                {
+                    string decision = side != 0 ? "knockdown queued"
+                        : remainingStunSeconds < MinimumKnockdownSeconds ? "upright, below knockdown duration"
+                        : $"upright, action prevented knockdown (transitioning={transitioning}, sniffing={sniffing}, roaring={roaring})";
+                    LogAnimation($"Stun started ({remainingStunSeconds:F2}s), {decision}");
+                }
+
                 if (side != knockdownSide.Value)
                 {
                     knockdownSide.Value = side;
@@ -983,6 +1054,11 @@ namespace JPOGTrex {
 
             playingKnockdown = side != 0 || current.tagHash == KnockdownTag
                 || (transitioning && creatureAnimator.GetNextAnimatorStateInfo(0).tagHash == KnockdownTag);
+            if (AnimationPlaytestLogging && side != creatureAnimator.GetInteger(KnockdownSideParameter))
+            {
+                LogAnimation(side == 0 ? "Knockdown recovery requested"
+                    : $"Knockdown requested toward {(side < 0 ? "left" : "right")}");
+            }
             creatureAnimator.SetInteger(KnockdownSideParameter, side);
             creatureAnimator.SetBool(KnockdownActiveParameter, playingKnockdown);
         }
@@ -1130,6 +1206,11 @@ namespace JPOGTrex {
             float weight = Mathf.MoveTowards(creatureAnimator.GetLayerWeight(woundedPostureLayerIndex),
                 targetWeight, WoundedPostureWeight * Time.deltaTime / fadeTime);
             creatureAnimator.SetLayerWeight(woundedPostureLayerIndex, weight);
+            if (AnimationPlaytestLogging && showWound != lastLoggedWoundedPosture)
+            {
+                lastLoggedWoundedPosture = showWound;
+                LogAnimation(showWound ? "Wounded posture fading in" : "Wounded posture fading out");
+            }
         }
 
         private void SetUpperBodyMotionWeight(float weight)
@@ -1171,9 +1252,18 @@ namespace JPOGTrex {
         //These methods are called during certain frames in the animation
         private void OnEnemyBiteContact()
         {
-            if (IsOwner && !isEnemyDead)
+            if (isEnemyDead)
+            {
+                return;
+            }
+
+            if (IsOwner)
             {
                 EnemyAttack.HitAtContact();
+            }
+            else
+            {
+                LogAnimation("Enemy bite contact marker observed");
             }
         }
 
@@ -1185,13 +1275,19 @@ namespace JPOGTrex {
         private void PlayFootStepAudioClip(AudioClip audioClip)
         {
             // The synced gait layers and blended clips can share a foot-contact marker.
-            if (isEnemyDead || creatureAnimator.GetFloat(MoveSpeedParameter) < 0.35f || Time.time - lastFootstepTime < 0.16f)
+            float speed = creatureAnimator.GetFloat(MoveSpeedParameter);
+            if (isEnemyDead || speed < 0.35f || Time.time - lastFootstepTime < 0.16f)
             {
                 return;
             }
 
             lastFootstepTime = Time.time;
             creatureSFX.PlayOneShot(audioClip);
+            if (AnimationPlaytestLogging && !loggedFootstepForMovement)
+            {
+                loggedFootstepForMovement = true;
+                LogAnimation($"Footstep audio played at speed {speed:F2}");
+            }
             WalkieTalkie.TransmitOneShotAudio(creatureSFX, audioClip);
             ShakeCamera();
         }
