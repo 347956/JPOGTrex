@@ -77,6 +77,20 @@ namespace JPOGTrex {
         private static readonly int IdleDetailsAllowedParameter = Animator.StringToHash("IdleDetailsAllowed");
         private static readonly int IdleBlinkParameter = Animator.StringToHash("idleBlink");
         private static readonly int IdleTailFlickParameter = Animator.StringToHash("idleTailFlick");
+        private const string PatrolSneezeTrigger = "sneezingIdle";
+        private const string PatrolLookLeft = "idleLookLeft";
+        private const string PatrolLookRight = "idleLookRight";
+        private const string PatrolLookUp = "idleLookUp";
+        private const string PatrolLookDown = "idleLookDown";
+        private static readonly int[] StationaryDetailTriggers =
+        {
+            IdleTailFlickParameter,
+            Animator.StringToHash(PatrolSneezeTrigger),
+            Animator.StringToHash(PatrolLookLeft),
+            Animator.StringToHash(PatrolLookRight),
+            Animator.StringToHash(PatrolLookUp),
+            Animator.StringToHash(PatrolLookDown)
+        };
         private readonly System.Random idleDetailRandom = new System.Random();
         private float nextIdleDetailTime;
         private int upperBodyGaitLayerIndex = -1;
@@ -1015,35 +1029,62 @@ namespace JPOGTrex {
             UpdateWoundedPosture(goingToBreathing);
 
             bool breathing = goingToBreathing && !transitioning;
-            bool allowRecoil = breathing && stunNormalizedTimer <= 0f && CheckIfInNotAnimation();
-            creatureAnimator.SetBool(HitRecoilAllowedParameter, allowRecoil);
-            if (!allowRecoil)
+            bool allowDetails = breathing && stunNormalizedTimer <= 0f && CheckIfInNotAnimation();
+            creatureAnimator.SetBool(HitRecoilAllowedParameter, allowDetails);
+            if (!allowDetails)
             {
                 creatureAnimator.ResetTrigger(HitRecoilParameter);
             }
 
-            creatureAnimator.SetBool(IdleDetailsAllowedParameter, breathing);
-            if (!breathing)
+            creatureAnimator.SetBool(IdleDetailsAllowedParameter, allowDetails);
+            bool stationary = creatureAnimator.GetFloat(MoveSpeedParameter) < 0.35f;
+            if (!allowDetails || !stationary)
+            {
+                foreach (int trigger in StationaryDetailTriggers)
+                {
+                    creatureAnimator.ResetTrigger(trigger);
+                }
+            }
+            if (!allowDetails)
             {
                 creatureAnimator.ResetTrigger(IdleBlinkParameter);
-                creatureAnimator.ResetTrigger(IdleTailFlickParameter);
                 return;
             }
 
-            bool stationary = creatureAnimator.GetFloat(MoveSpeedParameter) < 0.35f;
-            if (!stationary)
-            {
-                creatureAnimator.ResetTrigger(IdleTailFlickParameter);
-            }
-
             if (!IsSpawned || !IsOwner || Time.time < nextIdleDetailTime
-                || currentBehaviourStateIndex != (int)State.SearchingForPlayer || !CheckIfInNotAnimation())
+                || currentBehaviourStateIndex != (int)State.SearchingForPlayer)
             {
                 return;
             }
 
             nextIdleDetailTime = Time.time + 4f + (float)idleDetailRandom.NextDouble() * 6f;
-            DoAnimationServerRpc(stationary && idleDetailRandom.Next(3) == 0 ? "idleTailFlick" : "idleBlink");
+            string detail = stationary ? idleDetailRandom.Next(12) switch
+            {
+                0 => PatrolSneezeTrigger,
+                1 or 2 or 3 => "idleTailFlick",
+                4 or 5 or 6 => PickPatrolGlance(),
+                _ => "idleBlink"
+            } : "idleBlink";
+            DoAnimationServerRpc(detail);
+        }
+
+        private string PickPatrolGlance()
+        {
+            if (agent.enabled && agent.isOnNavMesh && agent.hasPath)
+            {
+                Vector3 direction = transform.InverseTransformDirection(agent.steeringTarget - transform.position);
+                float planarDistance = new Vector2(direction.x, direction.z).magnitude;
+                if (Mathf.Abs(direction.y) > Mathf.Max(0.5f, planarDistance * 0.35f))
+                {
+                    return direction.y > 0f ? PatrolLookUp : PatrolLookDown;
+                }
+                if (Mathf.Abs(direction.x) > Mathf.Max(0.5f, planarDistance * 0.25f))
+                {
+                    return direction.x > 0f ? PatrolLookRight : PatrolLookLeft;
+                }
+            }
+
+            return idleDetailRandom.Next(2) == 0 ? PatrolLookLeft : PatrolLookRight;
         }
 
         private void UpdateWoundedPosture(bool goingToBreathing)
