@@ -81,6 +81,13 @@ namespace JPOGTrex {
         private float nextIdleDetailTime;
         private int upperBodyGaitLayerIndex = -1;
         private int bodyTurnsLayerIndex = -1;
+        private const string WoundedPostureLayer = "Wounded Posture";
+        private const float WoundedHealthFraction = 0.35f;
+        private const float WoundedPostureWeight = 0.35f;
+        private readonly NetworkVariable<bool> wounded = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private int startingHealth;
+        private int woundedPostureLayerIndex = -1;
         private bool wasStunned;
         private float speedBeforeStun;
 
@@ -231,6 +238,8 @@ namespace JPOGTrex {
             nextIdleDetailTime = Time.time + 4f;
             upperBodyGaitLayerIndex = creatureAnimator.GetLayerIndex(UpperBodyGaitLayer);
             bodyTurnsLayerIndex = creatureAnimator.GetLayerIndex(BodyTurnsLayer);
+            woundedPostureLayerIndex = creatureAnimator.GetLayerIndex(WoundedPostureLayer);
+            startingHealth = enemyHP;
             previousYaw = transform.eulerAngles.y;
             if (IsOwner)
             {
@@ -828,6 +837,10 @@ namespace JPOGTrex {
                 }
                 return;
             }
+            if (IsOwner && IsSpawned && force > 0)
+            {
+                wounded.Value = enemyHP <= startingHealth * WoundedHealthFraction;
+            }
             if (!IsOwner || playerWhoHit == null)
             {
                 return;
@@ -857,6 +870,10 @@ namespace JPOGTrex {
             creatureAnimator.SetFloat(TurnAmountParameter, 0f);
             creatureAnimator.SetBool(IdleDetailsAllowedParameter, false);
             SetUpperBodyMotionWeight(0f);
+            if (woundedPostureLayerIndex >= 0)
+            {
+                creatureAnimator.SetLayerWeight(woundedPostureLayerIndex, 0f);
+            }
             creatureAnimator.SetTrigger("killEnemy");
             creatureVoice.Stop();
             creatureSFX.Stop();
@@ -933,6 +950,8 @@ namespace JPOGTrex {
                 SetUpperBodyMotionWeight(weight);
             }
 
+            UpdateWoundedPosture(goingToBreathing);
+
             bool breathing = goingToBreathing && !transitioning;
             creatureAnimator.SetBool(IdleDetailsAllowedParameter, breathing);
             if (!breathing)
@@ -956,6 +975,22 @@ namespace JPOGTrex {
 
             nextIdleDetailTime = Time.time + 4f + (float)idleDetailRandom.NextDouble() * 6f;
             DoAnimationServerRpc(stationary && idleDetailRandom.Next(3) == 0 ? "idleTailFlick" : "idleBlink");
+        }
+
+        private void UpdateWoundedPosture(bool goingToBreathing)
+        {
+            if (woundedPostureLayerIndex < 0)
+            {
+                return;
+            }
+
+            bool showWound = wounded.Value && goingToBreathing && stunNormalizedTimer <= 0f
+                && currentBehaviourStateIndex == (int)State.SearchingForPlayer && CheckIfInNotAnimation();
+            float targetWeight = showWound ? WoundedPostureWeight : 0f;
+            float fadeTime = showWound ? 0.3f : 0.1f;
+            float weight = Mathf.MoveTowards(creatureAnimator.GetLayerWeight(woundedPostureLayerIndex),
+                targetWeight, WoundedPostureWeight * Time.deltaTime / fadeTime);
+            creatureAnimator.SetLayerWeight(woundedPostureLayerIndex, weight);
         }
 
         private void SetUpperBodyMotionWeight(float weight)
