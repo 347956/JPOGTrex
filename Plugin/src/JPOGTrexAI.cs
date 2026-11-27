@@ -71,6 +71,7 @@ namespace JPOGTrex {
         private float nextLocomotionSyncTime;
         private float previousYaw;
         private float lastFootstepTime = float.NegativeInfinity;
+        private const string LegGaitLayer = "Walking layer";
         private const string UpperBodyGaitLayer = "Upper Body Gait";
         private const string BodyTurnsLayer = "Body Turns";
         private static readonly int BreathingState = Animator.StringToHash("BreathingAnimation");
@@ -93,6 +94,8 @@ namespace JPOGTrex {
         };
         private readonly System.Random idleDetailRandom = new System.Random();
         private float nextIdleDetailTime;
+        private TrexFootIk? footIk;
+        private int legGaitLayerIndex = -1;
         private int upperBodyGaitLayerIndex = -1;
         private int bodyTurnsLayerIndex = -1;
         private const string WoundedPostureLayer = "Wounded Posture";
@@ -263,6 +266,8 @@ namespace JPOGTrex {
             EnemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
             isDeadAnimationDone = false;
             nextIdleDetailTime = Time.time + 4f;
+            legGaitLayerIndex = creatureAnimator.GetLayerIndex(LegGaitLayer);
+            footIk = TrexFootIk.Create(creatureAnimator);
             upperBodyGaitLayerIndex = creatureAnimator.GetLayerIndex(UpperBodyGaitLayer);
             bodyTurnsLayerIndex = creatureAnimator.GetLayerIndex(BodyTurnsLayer);
             woundedPostureLayerIndex = creatureAnimator.GetLayerIndex(WoundedPostureLayer);
@@ -275,6 +280,7 @@ namespace JPOGTrex {
         }
 
         public override void Update() {
+            footIk?.RestoreAnimatedPose();
             base.Update();
             if (isEnemyDead) {
                 // For some weird reason I can't get an RPC to get called from HitEnemy() (works from other methods), so we do this workaround. We just want the enemy to stop playing the song.
@@ -331,6 +337,28 @@ namespace JPOGTrex {
             {
                 Chase.Tick();
             }
+        }
+
+        private void LateUpdate()
+        {
+            if (footIk == null || legGaitLayerIndex < 0)
+            {
+                return;
+            }
+
+            if (!ventAnimationFinished || isEnemyDead || playingKnockdown || stunNormalizedTimer > 0f
+                || !creatureAnimator.isActiveAndEnabled)
+            {
+                footIk.Reset();
+                return;
+            }
+
+            bool normalGait = !creatureAnimator.IsInTransition(0)
+                && creatureAnimator.GetCurrentAnimatorStateInfo(0).shortNameHash == BreathingState
+                && CheckIfInNotAnimation() && (!IsOwner || (agent.isOnNavMesh && !agent.isOnOffMeshLink));
+            float phase = creatureAnimator.GetCurrentAnimatorStateInfo(legGaitLayerIndex).normalizedTime;
+            footIk.Apply(phase, creatureAnimator.GetFloat(MoveSpeedParameter), creatureAnimator.GetFloat(TurnAmountParameter),
+                normalGait, Time.deltaTime);
         }
 
         public override void DoAIInterval() {
@@ -900,6 +928,7 @@ namespace JPOGTrex {
             StopAllCoroutines();
             //Release any bodies so they can be picked up or teleported again
             Feeding.DropCarriedBodies();
+            footIk?.Reset();
             creatureAnimator.SetFloat(MoveSpeedParameter, 0f);
             creatureAnimator.SetFloat(TurnAmountParameter, 0f);
             creatureAnimator.SetBool(IdleDetailsAllowedParameter, false);
