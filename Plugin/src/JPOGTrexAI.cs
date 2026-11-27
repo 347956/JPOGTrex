@@ -88,6 +88,11 @@ namespace JPOGTrex {
             false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
         private int startingHealth;
         private int woundedPostureLayerIndex = -1;
+        private const string HitRecoilTrigger = "hitRecoil";
+        private const float HitRecoilCooldown = 0.75f;
+        private static readonly int HitRecoilParameter = Animator.StringToHash(HitRecoilTrigger);
+        private static readonly int HitRecoilAllowedParameter = Animator.StringToHash("HitRecoilAllowed");
+        private float nextHitRecoilTime;
         private bool wasStunned;
         private float speedBeforeStun;
 
@@ -840,6 +845,12 @@ namespace JPOGTrex {
             if (IsOwner && IsSpawned && force > 0)
             {
                 wounded.Value = enemyHP <= startingHealth * WoundedHealthFraction;
+                if (Time.time >= nextHitRecoilTime && creatureAnimator.GetBool(HitRecoilAllowedParameter)
+                    && CheckIfInNotAnimation())
+                {
+                    nextHitRecoilTime = Time.time + HitRecoilCooldown;
+                    DoAnimationServerRpc(HitRecoilTrigger);
+                }
             }
             if (!IsOwner || playerWhoHit == null)
             {
@@ -869,6 +880,7 @@ namespace JPOGTrex {
             creatureAnimator.SetFloat(MoveSpeedParameter, 0f);
             creatureAnimator.SetFloat(TurnAmountParameter, 0f);
             creatureAnimator.SetBool(IdleDetailsAllowedParameter, false);
+            creatureAnimator.SetBool(HitRecoilAllowedParameter, false);
             SetUpperBodyMotionWeight(0f);
             if (woundedPostureLayerIndex >= 0)
             {
@@ -953,6 +965,13 @@ namespace JPOGTrex {
             UpdateWoundedPosture(goingToBreathing);
 
             bool breathing = goingToBreathing && !transitioning;
+            bool allowRecoil = breathing && stunNormalizedTimer <= 0f && CheckIfInNotAnimation();
+            creatureAnimator.SetBool(HitRecoilAllowedParameter, allowRecoil);
+            if (!allowRecoil)
+            {
+                creatureAnimator.ResetTrigger(HitRecoilParameter);
+            }
+
             creatureAnimator.SetBool(IdleDetailsAllowedParameter, breathing);
             if (!breathing)
             {
