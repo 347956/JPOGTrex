@@ -1,6 +1,6 @@
 # JPOGTrex 🦖
 
-This repository contains the full source code for the JPOGTrex for Lethal Company, including the Unity project which can be used to build its asset bundle.  
+This repository contains the full source code for the JPOGTrex for Lethal Company, including its Unity content (prefab, model, animations and Dusk definitions).  
 The guide I followed for this project can be found [here](https://lethal.wiki/dev/apis/lethallib/custom-enemies/overview.).  
 A video Tutorial can be found [here](https://www.youtube.com/watch?v=NZ_F8wDczzM).
 
@@ -11,19 +11,47 @@ A video Tutorial can be found [here](https://www.youtube.com/watch?v=NZ_F8wDczzM
 > I do not own any of the Assets nor made them myself. The models, animations and some of the audio clips were made by: [Blue Tongue Entertainment](https://en.wikipedia.org/wiki/Blue_Tongue_Entertainment), which was closed down in 2011.  
 > I also got some sounds for the T-Rex from the game: [Primal Carnage: Extinction](https://store.steampowered.com/app/321360/Primal_Carnage_Extinction/).
 
-## Dependencies ✅
+## Repository layout 📁
 
-You need to install the following dependencies for this mod to work in the game (these are not installed by the setup script):
+This repository is a folder that goes inside the `Assets/` folder of a Lethal Company Unity project, for example `Assets/LethalCompany/Mods/plugins/JPOGTrex/`. It holds all of the mod's own Unity content and its code. The host Unity project supplies the generic parts: the game scripts (Assembly-CSharp), the Unity packages and DawnLib (`com.github.teamxiaolan.dawnlib.dusk.dll`).
 
-- [LethalLib](https://thunderstore.io/c/lethal-company/p/Evaisa/LethalLib/) for registering and adding our enemy.
-    - LethalLib depends on [HookGenPatcher](https://thunderstore.io/c/lethal-company/p/Evaisa/HookGenPatcher/).
+| Path | Contents |
+| --- | --- |
+| `Content/JPOGTrex/` | The enemy: prefab, model, animations, materials, audio, bestiary entries and Dusk registry assets. |
+| `JPOGTrexContentContainer.asset`, `JPOGTrexModInformation.asset` | The Dusk content container and mod information for the Dusk export. |
+| `Package/` | README, changelog and icon of the Thunderstore package (referenced by the mod information). |
+| `AssetBundles/` | Build output: the plugin DLL and the exported bundles. Only the `.meta` files are committed; the prefab references the DLL by the GUID in its `.meta`. |
+| `Editor/` | The Unity editor script that builds this mod's bundles (menu JPOG > Build JPOGTrex bundles). |
+| `Plugin~/` | The C# plugin. The `~` is on purpose: Unity ignores folders ending in `~`, so it doesn't try to compile the BepInEx code. |
+| `AssetSources~/` | Source files (Blender) that Unity shouldn't import. |
 
-If you didn't run the setup script you will also need to, in the `Plugin` directory where our plugin code is, run `dotnet tool restore` on the command-line to install the rest of the dependencies.  
-That should be all the required setup for this project, and now you can move to coding AI or making your own 3D models for your custom enemy. Good luck!
+## Building 🔨
+
+1. Create `Plugin~/JPOGTrex.csproj.user` (gitignored, machine specific). It sets the game path, copies the netcode-patched DLL to `AssetBundles/` (where Unity finds the AI script for the prefab) and deploys the mod to your test setup. A minimal version:
+
+   ```xml
+   <Project>
+     <PropertyGroup>
+       <GameDirectory>/path/to/Lethal Company/</GameDirectory>
+       <ManagedDirectory>$(GameDirectory)Lethal Company_Data/Managed/</ManagedDirectory>
+     </PropertyGroup>
+     <Target Name="CopyToUnity" AfterTargets="NetcodePatch">
+       <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(MSBuildThisFileDirectory)../AssetBundles/" />
+     </Target>
+   </Project>
+   ```
+
+   To deploy, add a target after `CopyToUnity` that copies `AssetBundles/JPOGTrex.dll` and `AssetBundles/*.duskmod` to `BepInEx/plugins/347956-JPOGTrex/` of your r2modman profile, and the content bundle to an `Assets/` subfolder there (Dusk only loads content bundles from `Assets/`).
+
+2. In `Plugin~`, run `dotnet tool restore` once, then `dotnet build`.
+3. Build the bundles in Unity with **JPOG > Build JPOGTrex bundles** (`Editor/JPOGTrexBundleBuilder.cs`). It builds only this mod's bundles into `AssetBundles/`; the Asset Bundle Browser would build every bundle in the project into its one output folder. Run `dotnet build` again afterwards to deploy the new bundles.
+
+> [!IMPORTANT]
+> Build the DLL before opening the Unity project after a fresh clone. If the DLL is missing, Unity deletes its `.meta` file and the prefab loses its AI script.
 
 ### Thunderstore Packages 📦
 
-We have configured [JPOGTrex.csproj](/Plugin/JPOGTrex.csproj) to build a Thunderstore package to [/Plugin/Thunderstore/Packages/](/Plugin/Thunderstore/Packages/) using [tcli](https://github.com/thunderstore-io/thunderstore-cli/wiki) each time we make a release build of our mod. A release build can be done for example from the command-line like this: `dotnet build -c release`. This will use configuration options from [thunderstore.toml](/Plugin/Thunderstore/thunderstore.toml), so configure it for your own mod! Do note that we have not included a way to upload your mod to thunderstore via tcli in this project.
+We have configured [JPOGTrex.csproj](/Plugin~/JPOGTrex.csproj) to build a Thunderstore package to [/Plugin~/Thunderstore/Packages/](/Plugin~/Thunderstore/Packages/) using [tcli](https://github.com/thunderstore-io/thunderstore-cli/wiki) each time we make a release build of our mod. A release build can be done for example from the command-line like this: `dotnet build -c release`. This will use configuration options from [thunderstore.toml](/Plugin~/Thunderstore/thunderstore.toml), so configure it for your own mod! Do note that we have not included a way to upload your mod to thunderstore via tcli in this project.
 
 
 ## Trouble shooting 🛠️
@@ -31,7 +59,7 @@ This section is mostly for myself to check how things should be made, or what to
 It should give some tips when encountering problems in this project or your own.
 
 ### General 
-- Don't forget to replace the build dll into: "UnityProject\Assets\Plugins" so the game object has all scripts and properties it needs available
+- Build the plugin after code changes so the DLL in `AssetBundles/` is up to date; the prefab gets its scripts and properties from it
 - Don't forget to add the prefab or other assets to the assetbundle in Unity
 - Important events or manipulation of the model should be handles with networking. e.g. [ServerRpc] > [ClientRpc] > method()
   - If not done correctly it could cause syncing issues e.g. the body of the player being grabbed by the enemy for one player but laying on the ground for the other 
