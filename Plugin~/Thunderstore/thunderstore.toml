@@ -20,9 +20,14 @@ outdir = "./Packages"
 source = "../bin/Release/netstandard2.1/JPOGTrex.dll"
 target = "/plugins/JPOGTrex/"
 
+# The Dusk export from the Unity project: the .duskmod next to the DLL, the content bundle in an Assets/ subfolder (Dusk only loads it from there).
+[[build.copy]]
+source = "../../AssetBundles/jpogtrexmainassets.duskmod"
+target = "/plugins/JPOGTrex/"
+
 [[build.copy]]
 source = "../../AssetBundles/jpogtrexassets"
-target = "/plugins/JPOGTrex/"
+target = "/plugins/JPOGTrex/Assets/"
 
 [[build.copy]]
 source = "../../Package/CHANGELOG.md"
