@@ -1768,7 +1768,6 @@ GameObject:
   - component: {fileID: 841449377986703936}
   - component: {fileID: 2808440768676617132}
   - component: {fileID: 8685370846761548046}
-  - component: {fileID: 1657884619638428452}
   - component: {fileID: 8044196307759036319}
   - component: {fileID: 7436185453112146925}
   m_Layer: 19
@@ -1888,69 +1887,6 @@ MonoBehaviour:
   SpawnWithObservers: 1
   DontDestroyWithOwner: 0
   AutoObjectParentSync: 1
---- !u!114 &1657884619638428452
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5874863371319974617}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  TransitionStateInfoList:
-  - IsCrossFadeExit: 0
-    Layer: 0
-    OriginatingState: 595745512
-    DestinationState: 794271439
-    TransitionDuration: 0.25
-    TriggerNameHash: 1272818081
-    TransitionIndex: 0
-  - IsCrossFadeExit: 0
-    Layer: 0
-    OriginatingState: 1005021678
-    DestinationState: -1561446316
-    TransitionDuration: 0.25
-    TriggerNameHash: -1292572070
-    TransitionIndex: 0
-  - IsCrossFadeExit: 0
-    Layer: 0
-    OriginatingState: -1561446316
-    DestinationState: 1005021678
-    TransitionDuration: 0.25
-    TriggerNameHash: -304700231
-    TransitionIndex: 0
-  - IsCrossFadeExit: 0
-    Layer: 1
-    OriginatingState: 293065
-    DestinationState: -1701686356
-    TransitionDuration: 0.25
-    TriggerNameHash: 1397615125
-    TransitionIndex: 0
-  - IsCrossFadeExit: 0
-    Layer: 1
-    OriginatingState: 496900179
-    DestinationState: -1701686356
-    TransitionDuration: 0.25
-    TriggerNameHash: 1397615125
-    TransitionIndex: 0
-  - IsCrossFadeExit: 0
-    Layer: 1
-    OriginatingState: -2062645381
-    DestinationState: -1701686356
-    TransitionDuration: 0.25
-    TriggerNameHash: 1397615125
-    TransitionIndex: 0
-  - IsCrossFadeExit: 0
-    Layer: 1
-    OriginatingState: -54793006
-    DestinationState: -1701686356
-    TransitionDuration: 0.25
-    TriggerNameHash: 1397615125
-    TransitionIndex: 0
-  m_Animator: {fileID: 2808440768676617132}
 --- !u!114 &8044196307759036319
 MonoBehaviour:
   m_ObjectHideFlags: 0
