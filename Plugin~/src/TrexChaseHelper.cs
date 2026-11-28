@@ -6,15 +6,11 @@ using UnityEngine.AI;
 namespace JPOGTrex
 {
     //Moves the T-rex during a chase. It aims a bit ahead of the target, and its speed depends on the distance and on how fast the target moves,
-    //so it doesn't brake too early, doesn't overshoot up close, and sprinting players with stamina can still get away.
+    //so it doesn't brake too early and doesn't overshoot up close. It always outruns a sprinting player, who has to break line of sight to escape.
     internal class TrexChaseHelper
     {
         private readonly JPOGTrexAI trexAI;
 
-        //Players walk at 4.6 and sprint at up to ~10.35 (4.6 * 2.25), anything faster than this counts as sprinting
-        private readonly float sprintSpeedThreshold = 6f;
-        //The T-rex's speed compared to a sprinting player, below 1 lets players with stamina get away
-        private readonly float sprintChaseRatio = 0.9f;
         //Part of the agent's acceleration used to plan braking towards the target. Higher brakes later, 1 would brake at the last possible moment
         private readonly float brakingStrength = 0.8f;
         private readonly float minChaseSpeed = 3f;
@@ -105,12 +101,11 @@ namespace JPOGTrex
         private float GetChaseSpeed(float gap)
         {
             float targetSpeed = TargetVelocity.magnitude;
-            float speedCap = targetSpeed >= sprintSpeedThreshold ? Mathf.Min(maxChaseSpeed, targetSpeed * sprintChaseRatio) : maxChaseSpeed;
             //Braking curve: the fastest it can close in while still being able to brake in time (v = sqrt(2 * deceleration * distance)),
             //so it keeps full speed until close to the target and doesn't run past it
             float closingSpeed = Mathf.Sqrt(2f * trexAI.agent.acceleration * brakingStrength * gap);
             float speed = targetSpeed + closingSpeed;
-            return Mathf.Clamp(speed, Mathf.Min(minChaseSpeed, speedCap), speedCap);
+            return Mathf.Clamp(speed, minChaseSpeed, maxChaseSpeed);
         }
 
         private Vector3 GetLeadPosition(PlayerControllerB target, float gap)
