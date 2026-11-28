@@ -301,8 +301,7 @@ AnimationClip:
         time: 0.9333334
         value: {x: -0.074793644, y: 0.000000006725964, z: -0.0000000069546164, w: 0.99719906}
         inSlope: {x: 0.17115791, y: -0.0000000011936785, z: -0.0000000011544365, w: 0.012837946}
-        outSlope: {x: 0.17115791, y: -0.0000000011936785, z: -0.0000000011544365,
-          w: 0.012837946}
+        outSlope: {x: 0.17115791, y: -0.0000000011936785, z: -0.0000000011544365, w: 0.012837946}
         tangentMode: 0
         weightedMode: 0
         inWeight: {x: 0.33333334, y: 0.33333334, z: 0.33333334, w: 0.33333334}
@@ -540,10 +539,8 @@ AnimationClip:
       - serializedVersion: 3
         time: 0.5666667
         value: {x: -0.030429693, y: -0.000000012744759, z: 0.0000000061318675, w: 0.99953693}
-        inSlope: {x: -0.29010832, y: -0.0000000017797364, z: -0.0000000036990746,
-          w: -0.008831622}
-        outSlope: {x: -0.29010832, y: -0.0000000017797364, z: -0.0000000036990746,
-          w: -0.008831622}
+        inSlope: {x: -0.29010832, y: -0.0000000017797364, z: -0.0000000036990746, w: -0.008831622}
+        outSlope: {x: -0.29010832, y: -0.0000000017797364, z: -0.0000000036990746, w: -0.008831622}
         tangentMode: 0
         weightedMode: 0
         inWeight: {x: 0.33333334, y: 0.33333334, z: 0.33333334, w: 0.33333334}
@@ -4760,9 +4757,15 @@ AnimationClip:
   m_Events:
   - time: 0.33333334
     functionName: PlayAudioClip
-    data: 
-    objectReferenceParameter: {fileID: 8300000, guid: cb057adbffacdef4faa6a20c9ac95310,
-      type: 3}
+    data:
+    objectReferenceParameter: {fileID: 8300000, guid: cb057adbffacdef4faa6a20c9ac95310, type: 3}
+    floatParameter: 0
+    intParameter: 0
+    messageOptions: 0
+  - time: 0.53333336
+    functionName: OnEnemyBiteContact
+    data:
+    objectReferenceParameter: {fileID: 0}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0

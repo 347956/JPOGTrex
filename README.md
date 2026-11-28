@@ -23,7 +23,7 @@ This repository is a folder that goes inside the `Assets/` folder of a Lethal Co
 | `AssetBundles/` | Build output: the plugin DLL and the exported bundles. Only the `.meta` files are committed; the prefab references the DLL by the GUID in its `.meta`. |
 | `Editor/` | The Unity editor script that builds this mod's bundles (menu JPOG > Build JPOGTrex bundles). |
 | `Plugin~/` | The C# plugin. The `~` is on purpose: Unity ignores folders ending in `~`, so it doesn't try to compile the BepInEx code. |
-| `AssetSources~/` | Source files (Blender) that Unity shouldn't import. |
+| `AssetSources~/` | Blender project and individual source animation FBXs, stored outside Unity import. |
 
 ## Building 🔨
 
@@ -76,6 +76,9 @@ It should give some tips when encountering problems in this project or your own.
 - Hit registration should be done server side: "[ServerRpc] > method()", to prevent latency of "[ServerRpc] > [ClientRpc] > method()" effecting the hit registration.
 
 ### Animations 
+
+For host/client playtests, set `AnimationPlaytestLogging = true` in the `[Debug]` section of the JPOGTrex BepInEx config on both peers. Search each peer’s `BepInEx/LogOutput.log` for `[Animation playtest]`. Match entries by T-Rex network ID and server time. The trace records actions, bite outcomes, and stun and recovery decisions, with one footstep entry per movement bout.
+
 - Most animation in this project are started from the "any event". I am not sure if this is best practice, but it makes animating a lot easier.
 - Coroutine can be can be used to execute code over frames. Usefull for waiting on animaitons to finish or executing logic at certain points during the animations.
 - Enabling "Has Exit Time" makes animation B wait for animation A to finish in a transition of A > B.

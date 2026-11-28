@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using GameNetcodeStuff;
 using JPOGTrex.Configuration;
@@ -48,7 +49,7 @@ namespace JPOGTrex {
         private readonly float knockbackUpwardForce = 5f;
         private bool isDeadAnimationDone;
         private float defaultSpeed = 6f;
-        //Chase speed = default speed * this. Above 12 the faster run animation is used
+        // Maximum chase speed before the chase helper applies braking.
         private readonly float chaseSpeedMultiplier = 2.25f;
         private State previousState = State.Idle;
         private bool roaring;
@@ -57,9 +58,77 @@ namespace JPOGTrex {
         private bool sniffing;
         private Coroutine? sniffCoroutine;
         private Coroutine? roarCoroutine;
-        private float previousSpeed;
+        private const float WalkBlendSpeed = 6f;
+        private const float RunBlendSpeed = 12f;
+        private const float MinimumGaitSpeed = 0.2f;
+        private const float TurnDeadZone = 8f;
+        private const float FullTurnSpeed = 100f;
+        private const float MaximumTurnSample = 45f;
+        private static readonly int TurnAmountParameter = Animator.StringToHash("TurnAmount");
+        private static readonly int MoveSpeedParameter = Animator.StringToHash("MoveSpeed");
+        private static readonly int GaitRateParameter = Animator.StringToHash("GaitRate");
+        private readonly NetworkVariable<Vector2> locomotion = new NetworkVariable<Vector2>(
+            Vector2.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private float nextLocomotionSyncTime;
+        private float previousYaw;
+        private float lastFootstepTime = float.NegativeInfinity;
+        private const string LegGaitLayer = "Walking layer";
+        private const string UpperBodyGaitLayer = "Upper Body Gait";
+        private const string BodyTurnsLayer = "Body Turns";
+        private static readonly int BreathingState = Animator.StringToHash("BreathingAnimation");
+        private static readonly int IdleDetailsAllowedParameter = Animator.StringToHash("IdleDetailsAllowed");
+        private static readonly int IdleBlinkParameter = Animator.StringToHash("idleBlink");
+        private static readonly int IdleTailFlickParameter = Animator.StringToHash("idleTailFlick");
+        private const string PatrolSneezeTrigger = "sneezingIdle";
+        private const string PatrolLookLeft = "idleLookLeft";
+        private const string PatrolLookRight = "idleLookRight";
+        private const string PatrolLookUp = "idleLookUp";
+        private const string PatrolLookDown = "idleLookDown";
+        private static readonly int[] StationaryDetailTriggers =
+        {
+            IdleTailFlickParameter,
+            Animator.StringToHash(PatrolSneezeTrigger),
+            Animator.StringToHash(PatrolLookLeft),
+            Animator.StringToHash(PatrolLookRight),
+            Animator.StringToHash(PatrolLookUp),
+            Animator.StringToHash(PatrolLookDown)
+        };
+        private readonly System.Random idleDetailRandom = new System.Random();
+        private float nextIdleDetailTime;
+        private TrexFootIk? footIk;
+        private int legGaitLayerIndex = -1;
+        private int upperBodyGaitLayerIndex = -1;
+        private int bodyTurnsLayerIndex = -1;
+        private const string WoundedPostureLayer = "Wounded Posture";
+        private const float WoundedHealthFraction = 0.35f;
+        private const float WoundedPostureWeight = 0.35f;
+        private readonly NetworkVariable<bool> wounded = new NetworkVariable<bool>(
+            false, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private int startingHealth;
+        private int woundedPostureLayerIndex = -1;
+        private const string HitRecoilTrigger = "hitRecoil";
+        private const float HitRecoilCooldown = 0.75f;
+        private static readonly int HitRecoilParameter = Animator.StringToHash(HitRecoilTrigger);
+        private static readonly int HitRecoilAllowedParameter = Animator.StringToHash("HitRecoilAllowed");
+        private float nextHitRecoilTime;
+        private const float MinimumKnockdownSeconds = 2.6f;
+        private const float KnockdownRecoverySeconds = 1.55f;
+        private static readonly int KnockdownTag = Animator.StringToHash("Knockdown");
+        private static readonly int KnockdownSideParameter = Animator.StringToHash("KnockdownSide");
+        private static readonly int KnockdownActiveParameter = Animator.StringToHash("KnockdownActive");
+        private readonly NetworkVariable<int> knockdownSide = new NetworkVariable<int>(
+            0, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+        private bool playingKnockdown;
         private bool wasStunned;
         private float speedBeforeStun;
+
+        private int lastLoggedActionState;
+        private bool loggedFootstepForMovement;
+        private bool lastLoggedWoundedPosture;
+        private bool lastLoggedObserverStun;
+        private List<AnimatorClipInfo>? loggedActionClips;
+
+        internal bool AnimationPlaytestLogging => Plugin.BoundConfig.AnimationPlaytestLogging.Value;
 
         ThreatType IVisibleThreat.type => ThreatType.ForestGiant;
 
@@ -140,6 +209,17 @@ namespace JPOGTrex {
             Plugin.Logger.LogInfo(text);
         }
 
+        internal void LogAnimation(string message)
+        {
+            if (!AnimationPlaytestLogging || !IsSpawned || NetworkManager == null)
+            {
+                return;
+            }
+
+            Plugin.Logger.LogInfo($"[Animation playtest] T-Rex {NetworkObjectId} | peer {NetworkManager.LocalClientId} "
+                + $"| owner {OwnerClientId} | {NetworkManager.ServerTime.Time:F2}s | {message}");
+        }
+
         //These objects are only used for their position and shape, the bite does its own check with them.
         //Their colliders would otherwise act as triggers on the Enemies layer.
         private void DisableUnusedColliders()
@@ -205,14 +285,23 @@ namespace JPOGTrex {
             timeSinceHittingLocalPlayer = 0;
             EnemyRandom = new System.Random(StartOfRound.Instance.randomMapSeed + thisEnemyIndex);
             isDeadAnimationDone = false;
+            nextIdleDetailTime = Time.time + 4f;
+            legGaitLayerIndex = creatureAnimator.GetLayerIndex(LegGaitLayer);
+            footIk = TrexFootIk.Create(creatureAnimator);
+            LogAnimation(footIk != null && legGaitLayerIndex >= 0 ? "Foot IK ready" : "Foot IK unavailable on this rig");
+            upperBodyGaitLayerIndex = creatureAnimator.GetLayerIndex(UpperBodyGaitLayer);
+            bodyTurnsLayerIndex = creatureAnimator.GetLayerIndex(BodyTurnsLayer);
+            woundedPostureLayerIndex = creatureAnimator.GetLayerIndex(WoundedPostureLayer);
+            startingHealth = enemyHP;
+            previousYaw = transform.eulerAngles.y;
             if (IsOwner)
             {
-                SetWalkingAnimationServerRpc(defaultSpeed);
                 SwitchToBehaviourState((int)State.SearchingForPlayer);
             }
         }
 
         public override void Update() {
+            footIk?.RestoreAnimatedPose();
             base.Update();
             if (isEnemyDead) {
                 // For some weird reason I can't get an RPC to get called from HitEnemy() (works from other methods), so we do this workaround. We just want the enemy to stop playing the song.
@@ -234,6 +323,9 @@ namespace JPOGTrex {
             }
 
             ScareLocalPlayerIfTargeted();
+            UpdateKnockdown();
+            UpdateLocomotion();
+            UpdateAnimationLayers();
 
             if (!IsOwner)
             {
@@ -242,25 +334,24 @@ namespace JPOGTrex {
 
             var state = currentBehaviourStateIndex;
             UpdateFearTarget(state);
-            if (targetPlayer != null && (state == (int)State.GrabPlayer || state == (int)State.GrabbedPlayer || state == (int)State.GrabbingPlayer || state == (int)State.EatingPlayer || state == (int)State.SpottedPlayer)) {
+            if (!playingKnockdown && targetPlayer != null && (state == (int)State.GrabPlayer || state == (int)State.GrabbedPlayer || state == (int)State.GrabbingPlayer || state == (int)State.EatingPlayer || state == (int)State.SpottedPlayer)) {
                 turnCompass.LookAt(targetPlayer.gameplayCamera.transform.position);
                 transform.rotation = Quaternion.Lerp(transform.rotation, Quaternion.Euler(new Vector3(0f, turnCompass.eulerAngles.y, 0f)), 4f * Time.deltaTime);
             }
-            if (stunNormalizedTimer > 0f)
+            if (stunNormalizedTimer > 0f || playingKnockdown)
             {
                 if (!wasStunned)
                 {
                     wasStunned = true;
                     speedBeforeStun = agent.speed;
                     agent.speed = 0f;
-                    SetWalkingAnimationServerRpc(agent.speed);
                 }
             }
             else if (wasStunned)
             {
                 wasStunned = false;
                 agent.speed = speedBeforeStun;
-                SetWalkingAnimationServerRpc(agent.speed);
+                LogAnimation("Stun and knockdown recovery cleared, movement restored");
             }
             //Steering runs every frame while chasing instead of on the AI interval, so the T-rex doesn't head for an outdated position
             //Also during the bite, otherwise a walking player steps out of reach before the jaws close
@@ -270,10 +361,65 @@ namespace JPOGTrex {
             }
         }
 
+        private void LateUpdate()
+        {
+            if (AnimationPlaytestLogging && IsSpawned && creatureAnimator.isActiveAndEnabled)
+            {
+                LogAnimationPlayback();
+            }
+
+            if (footIk == null || legGaitLayerIndex < 0)
+            {
+                return;
+            }
+
+            if (!ventAnimationFinished || isEnemyDead || playingKnockdown || stunNormalizedTimer > 0f
+                || !creatureAnimator.isActiveAndEnabled)
+            {
+                footIk.Reset();
+                return;
+            }
+
+            bool normalGait = !creatureAnimator.IsInTransition(0)
+                && creatureAnimator.GetCurrentAnimatorStateInfo(0).shortNameHash == BreathingState
+                && CheckIfInNotAnimation() && (!IsOwner || (agent.isOnNavMesh && !agent.isOnOffMeshLink));
+            float phase = creatureAnimator.GetCurrentAnimatorStateInfo(legGaitLayerIndex).normalizedTime;
+            footIk.Apply(phase, creatureAnimator.GetFloat(MoveSpeedParameter), creatureAnimator.GetFloat(TurnAmountParameter),
+                normalGait, Time.deltaTime);
+        }
+
+        private void LogAnimationPlayback()
+        {
+            if (creatureAnimator.GetFloat(MoveSpeedParameter) < 0.35f && Time.time - lastFootstepTime >= 0.75f)
+            {
+                loggedFootstepForMovement = false;
+            }
+
+            bool observingStun = !IsOwner && !isEnemyDead && stunNormalizedTimer > 0f;
+            if (observingStun && !lastLoggedObserverStun)
+            {
+                LogAnimation($"Stun observed ({stunNormalizedTimer * enemyType.stunTimeMultiplier:F2}s remaining)");
+            }
+            lastLoggedObserverStun = observingStun;
+
+            int state = creatureAnimator.GetCurrentAnimatorStateInfo(0).fullPathHash;
+            if (state == 0 || state == lastLoggedActionState)
+            {
+                return;
+            }
+
+            lastLoggedActionState = state;
+            loggedActionClips ??= new List<AnimatorClipInfo>();
+            creatureAnimator.GetCurrentAnimatorClipInfo(0, loggedActionClips);
+            AnimationClip? clip = loggedActionClips.Count > 0 ? loggedActionClips[0].clip : null;
+            string action = clip != null ? clip.name : $"state {state}";
+            LogAnimation($"Base animation entered {action}");
+        }
+
         public override void DoAIInterval() {
 
             base.DoAIInterval();
-            if (isEnemyDead || StartOfRound.Instance.allPlayersDead) {
+            if (isEnemyDead || StartOfRound.Instance.allPlayersDead || playingKnockdown) {
                 return;
             };
 
@@ -290,7 +436,6 @@ namespace JPOGTrex {
                         Grab.ResetMisses();
                         agent.speed = defaultSpeed;
                         agent.autoBraking = true;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         StartSearch(transform.position);
                         previousState = State.SearchingForPlayer;
                     }
@@ -320,7 +465,6 @@ namespace JPOGTrex {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [SpottedPlayer]");
                         agent.speed = 2f;
                         sniffing = true;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         sniffCoroutine = StartCoroutine(FoundPlayer());
                         isSniffingStarted = true;
                         previousState = State.SpottedPlayer;
@@ -333,12 +477,11 @@ namespace JPOGTrex {
                     break;
 
                 case (int)State.Roaring:
-                    //Because the T-rex's walking animation gets set in the spotted player phase we do not want to set it again to avoid bugging animations
+                    // Keep the slow movement from the spotted phase when it leads into the roar.
                     if(previousState != State.SpottedPlayer && previousState != State.Roaring)
                     {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [Roaring]");
                         agent.speed = 0f;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.Roaring;
                     }
                     if (previousState != State.Roaring && !isRoaringStarted)
@@ -363,7 +506,6 @@ namespace JPOGTrex {
                         previousState = State.ChasingPlayer;
                         //The chase helper steers instead, EnemyAI would otherwise overwrite its destination every frame
                         movingTowardsTargetPlayer = false;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         Targeting.ResetLostPlayer();
                         //The chase helper slows the T-rex down near the target instead, braking makes it slow down far too early
                         agent.autoBraking = false;
@@ -448,7 +590,6 @@ namespace JPOGTrex {
                         {
                             LogIfDebugBuild("JPOGTrex: Hit connect, Switching to GrabbingPlayer");
                             agent.speed = defaultSpeed / 2;
-                            SetWalkingAnimationServerRpc(agent.speed);
                             SwitchToBehaviourState((int)State.GrabbingPlayer);
                         }
                         else if (!Grab.InGrabAttack)
@@ -480,7 +621,6 @@ namespace JPOGTrex {
                         agent.speed = 0;
                         previousState = State.GrabbingPlayer;
                         movingTowardsTargetPlayer = false;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         Feeding.BeginShakeLocal();
                         ShakingBodiesServerRpc();
                     }
@@ -508,7 +648,6 @@ namespace JPOGTrex {
                     {
                         LogIfDebugBuild("JPOGTrex: Entered behaviourState [EatingPlayer]");
                         agent.speed = 0f;
-                        SetWalkingAnimationServerRpc(agent.speed);
                         previousState = State.EatingPlayer;
                         if (Feeding.IsHungry && !Feeding.IsEating)
                         {
@@ -525,33 +664,8 @@ namespace JPOGTrex {
                     break;
 
                 case (int)State.Idle:
-                    int rndIdle = EnemyRandom.Next(4);
-                    if (rndIdle == 1)
-                    {
-                        LogIfDebugBuild("JPOGTrex: Entered behaviourState [Idle]");
-                        agent.speed = 1f;
-                        DoAnimationServerRpc("lookingIdle");
-                        previousState = State.Idle;
-                    }
-                    else if (rndIdle == 2)
-                    {
-                        agent.speed = 1f;
-                        DoAnimationServerRpc("sniffingIdle");
-                        previousState = State.Idle;
-                    }
-                    else if (rndIdle == 3)
-                    {
-                        agent.speed = 0f;
-                        DoAnimationServerRpc("eatingIdle01");
-                        previousState = State.Idle;
-                        SwitchToBehaviourState((int)State.Eating);
-                    }
-                    break;
-
                 case (int)State.Eating:
-                    DoAnimationServerRpc("eatingIdle02");
-                    previousState = State.Idle;
-                    SwitchToBehaviourState((int)State.Eating);
+                    SwitchToBehaviourState((int)State.SearchingForPlayer);
                     break;
 
                 default:
@@ -631,7 +745,7 @@ namespace JPOGTrex {
 
         public bool CheckIfInNotAnimation()
         {
-            return !Grab.IsBusy && !Feeding.IsEating && !EnemyAttack.IsAttacking;
+            return !playingKnockdown && !Grab.IsBusy && !Feeding.IsEating && !EnemyAttack.IsAttacking;
         }
 
         internal void ResetHitTimer()
@@ -689,21 +803,27 @@ namespace JPOGTrex {
         }
 
         [ServerRpc(RequireOwnership = false)]
-        private void SetWalkingAnimationServerRpc(float speed)
+        public void DoAnimationServerRpc(string animationName, bool playedOnOwner = false)
         {
-            SetWalkingAnimation(speed);
-        }
-
-        [ServerRpc(RequireOwnership = false)]
-        public void DoAnimationServerRpc(string animationName)
-        {
-            DoAnimationClientRpc(animationName);
+            DoAnimationClientRpc(animationName, playedOnOwner);
         }
 
         [ClientRpc]
-        public void DoAnimationClientRpc(string animationName)
+        private void DoAnimationClientRpc(string animationName, bool playedOnOwner)
         {
-            LogIfDebugBuild($"Animation: {animationName}");
+            if (isEnemyDead || playingKnockdown || knockdownSide.Value != 0 || (playedOnOwner && IsOwner))
+            {
+                return;
+            }
+
+            if (AnimationPlaytestLogging && animationName != "idleBlink")
+            {
+                LogAnimation($"Animator trigger {animationName}");
+            }
+            else
+            {
+                LogIfDebugBuild($"Animation: {animationName}");
+            }
             creatureAnimator.SetTrigger(animationName);
         }
 
@@ -835,6 +955,16 @@ namespace JPOGTrex {
                 }
                 return;
             }
+            if (IsOwner && IsSpawned && force > 0)
+            {
+                wounded.Value = enemyHP <= startingHealth * WoundedHealthFraction;
+                if (Time.time >= nextHitRecoilTime && creatureAnimator.GetBool(HitRecoilAllowedParameter)
+                    && CheckIfInNotAnimation())
+                {
+                    nextHitRecoilTime = Time.time + HitRecoilCooldown;
+                    DoAnimationServerRpc(HitRecoilTrigger);
+                }
+            }
             if (!IsOwner || playerWhoHit == null)
             {
                 return;
@@ -860,10 +990,18 @@ namespace JPOGTrex {
             StopAllCoroutines();
             //Release any bodies so they can be picked up or teleported again
             Feeding.DropCarriedBodies();
-            if (IsOwner)
+            footIk?.Reset();
+            creatureAnimator.SetFloat(MoveSpeedParameter, 0f);
+            creatureAnimator.SetFloat(TurnAmountParameter, 0f);
+            creatureAnimator.SetBool(IdleDetailsAllowedParameter, false);
+            creatureAnimator.SetBool(HitRecoilAllowedParameter, false);
+            creatureAnimator.SetBool(KnockdownActiveParameter, true);
+            SetUpperBodyMotionWeight(0f);
+            if (woundedPostureLayerIndex >= 0)
             {
-                SetWalkingAnimationServerRpc(0f);
+                creatureAnimator.SetLayerWeight(woundedPostureLayerIndex, 0f);
             }
+            LogAnimation($"Death trigger sent (knockdown active={playingKnockdown}, side={knockdownSide.Value})");
             creatureAnimator.SetTrigger("killEnemy");
             creatureVoice.Stop();
             creatureSFX.Stop();
@@ -872,36 +1010,219 @@ namespace JPOGTrex {
 
         //Some Utility stuff
 
-        //Simple method that sets the walking animation of the T-rex based on it's speed.
-        //This way a more slowed down walking animation or sped up running animation can be applied.
-        //Should be called after the speed of the current behaviour state has been set.
-        //Runs on the server.
-        private void SetWalkingAnimation(float currentSpeed)
+        private void UpdateKnockdown()
         {
-            if (currentSpeed == previousSpeed)
+            if (!IsSpawned)
             {
                 return;
             }
-            previousSpeed = currentSpeed;
-            if (currentSpeed == 0f)
+
+            AnimatorStateInfo current = creatureAnimator.GetCurrentAnimatorStateInfo(0);
+            bool transitioning = creatureAnimator.IsInTransition(0);
+            int side = knockdownSide.Value;
+            if (IsOwner)
             {
-                DoAnimationClientRpc("stopWalk");
+                float remainingStunSeconds = stunNormalizedTimer * enemyType.stunTimeMultiplier;
+                if (side != 0 && remainingStunSeconds <= KnockdownRecoverySeconds)
+                {
+                    side = 0;
+                }
+                else if (side == 0 && !wasStunned && remainingStunSeconds >= MinimumKnockdownSeconds
+                    && !transitioning && current.shortNameHash == BreathingState
+                    && !sniffing && !roaring && CheckIfInNotAnimation())
+                {
+                    // Fall away from the source of the stun when it is known.
+                    bool fromRight = stunnedByPlayer != null
+                        ? Vector3.Dot(transform.right, stunnedByPlayer.transform.position - transform.position) >= 0f
+                        : thisEnemyIndex % 2 == 0;
+                    side = fromRight ? -1 : 1;
+                }
+
+                if (AnimationPlaytestLogging && !wasStunned && remainingStunSeconds > 0f)
+                {
+                    string decision = side != 0 ? "knockdown queued"
+                        : remainingStunSeconds < MinimumKnockdownSeconds ? "upright, below knockdown duration"
+                        : $"upright, action prevented knockdown (transitioning={transitioning}, sniffing={sniffing}, roaring={roaring})";
+                    LogAnimation($"Stun started ({remainingStunSeconds:F2}s), {decision}");
+                }
+
+                if (side != knockdownSide.Value)
+                {
+                    knockdownSide.Value = side;
+                }
             }
-            else if (currentSpeed <= 2f)
+
+            playingKnockdown = side != 0 || current.tagHash == KnockdownTag
+                || (transitioning && creatureAnimator.GetNextAnimatorStateInfo(0).tagHash == KnockdownTag);
+            if (AnimationPlaytestLogging && side != creatureAnimator.GetInteger(KnockdownSideParameter))
             {
-                DoAnimationClientRpc("slowDown");
+                LogAnimation(side == 0 ? "Knockdown recovery requested"
+                    : $"Knockdown requested toward {(side < 0 ? "left" : "right")}");
             }
-            else if (currentSpeed <= 6f)
+            creatureAnimator.SetInteger(KnockdownSideParameter, side);
+            creatureAnimator.SetBool(KnockdownActiveParameter, playingKnockdown);
+        }
+
+        private void UpdateLocomotion()
+        {
+            if (!IsSpawned)
             {
-                DoAnimationClientRpc("startWalk");
+                return;
             }
-            else if (currentSpeed <= 12f)
+
+            float yaw = transform.eulerAngles.y;
+            float yawDelta = Mathf.DeltaAngle(previousYaw, yaw);
+            previousYaw = yaw;
+            float deltaTime = Time.deltaTime;
+
+            Vector2 movement = locomotion.Value;
+            if (IsOwner)
             {
-                DoAnimationClientRpc("chasingRun");
+                Vector3 velocity = agent.enabled && agent.isOnNavMesh && stunNormalizedTimer <= 0f && !playingKnockdown
+                    ? agent.velocity
+                    : Vector3.zero;
+                float speed = new Vector2(velocity.x, velocity.z).magnitude;
+                if (speed < MinimumGaitSpeed)
+                {
+                    speed = 0f;
+                }
+
+                float turnAmount = 0f;
+                if (speed > 0f && deltaTime > 0f && Mathf.Abs(yawDelta) < MaximumTurnSample)
+                {
+                    float yawSpeed = yawDelta / deltaTime;
+                    turnAmount = Mathf.Sign(yawSpeed) * Mathf.InverseLerp(TurnDeadZone, FullTurnSpeed, Mathf.Abs(yawSpeed));
+                }
+                movement = new Vector2(speed, turnAmount);
+
+                // Share one sample for speed and turn, with an immediate update when movement stops.
+                Vector2 synced = new Vector2(Mathf.Round(speed * 4f) / 4f, Mathf.Round(turnAmount * 10f) / 10f);
+                if (synced != locomotion.Value && (synced.x == 0f || Time.time >= nextLocomotionSyncTime))
+                {
+                    locomotion.Value = synced;
+                    nextLocomotionSyncTime = Time.time + 0.1f;
+                }
             }
-            else
+
+            creatureAnimator.SetFloat(MoveSpeedParameter, movement.x, 0.065f, deltaTime);
+            creatureAnimator.SetFloat(TurnAmountParameter, movement.y, 0.1f, deltaTime);
+            float blendedSpeed = creatureAnimator.GetFloat(MoveSpeedParameter);
+            float gaitRate = blendedSpeed < WalkBlendSpeed
+                ? Mathf.Max(0.33f, blendedSpeed / WalkBlendSpeed)
+                : Mathf.Clamp(blendedSpeed / RunBlendSpeed, 1f, 1.35f);
+            creatureAnimator.SetFloat(GaitRateParameter, gaitRate);
+        }
+
+        private void UpdateAnimationLayers()
+        {
+            bool transitioning = creatureAnimator.IsInTransition(0);
+            AnimatorStateInfo action = transitioning
+                ? creatureAnimator.GetNextAnimatorStateInfo(0)
+                : creatureAnimator.GetCurrentAnimatorStateInfo(0);
+            bool goingToBreathing = action.shortNameHash == BreathingState;
+
+            if (upperBodyGaitLayerIndex >= 0)
             {
-                DoAnimationClientRpc("speedUp");
+                // Keep the leg cycle running while the action takes over the spine and head.
+                float currentWeight = creatureAnimator.GetLayerWeight(upperBodyGaitLayerIndex);
+                float targetWeight = goingToBreathing ? 1f : 0f;
+                float fadeTime = goingToBreathing ? 0.18f : 0.1f;
+                float weight = Mathf.MoveTowards(currentWeight, targetWeight, Time.deltaTime / fadeTime);
+                SetUpperBodyMotionWeight(weight);
+            }
+
+            UpdateWoundedPosture(goingToBreathing);
+
+            bool breathing = goingToBreathing && !transitioning;
+            bool allowDetails = breathing && stunNormalizedTimer <= 0f && CheckIfInNotAnimation();
+            creatureAnimator.SetBool(HitRecoilAllowedParameter, allowDetails);
+            if (!allowDetails)
+            {
+                creatureAnimator.ResetTrigger(HitRecoilParameter);
+            }
+
+            creatureAnimator.SetBool(IdleDetailsAllowedParameter, allowDetails);
+            bool stationary = creatureAnimator.GetFloat(MoveSpeedParameter) < 0.35f;
+            if (!allowDetails || !stationary)
+            {
+                foreach (int trigger in StationaryDetailTriggers)
+                {
+                    creatureAnimator.ResetTrigger(trigger);
+                }
+            }
+            if (!allowDetails)
+            {
+                creatureAnimator.ResetTrigger(IdleBlinkParameter);
+                return;
+            }
+
+            if (!IsSpawned || !IsOwner || Time.time < nextIdleDetailTime
+                || currentBehaviourStateIndex != (int)State.SearchingForPlayer)
+            {
+                return;
+            }
+
+            nextIdleDetailTime = Time.time + 4f + (float)idleDetailRandom.NextDouble() * 6f;
+            string detail = stationary ? idleDetailRandom.Next(12) switch
+            {
+                0 => PatrolSneezeTrigger,
+                1 or 2 or 3 => "idleTailFlick",
+                4 or 5 or 6 => PickPatrolGlance(),
+                _ => "idleBlink"
+            } : "idleBlink";
+            DoAnimationServerRpc(detail);
+        }
+
+        private string PickPatrolGlance()
+        {
+            if (agent.enabled && agent.isOnNavMesh && agent.hasPath)
+            {
+                Vector3 direction = transform.InverseTransformDirection(agent.steeringTarget - transform.position);
+                float planarDistance = new Vector2(direction.x, direction.z).magnitude;
+                if (Mathf.Abs(direction.y) > Mathf.Max(0.5f, planarDistance * 0.35f))
+                {
+                    return direction.y > 0f ? PatrolLookUp : PatrolLookDown;
+                }
+                if (Mathf.Abs(direction.x) > Mathf.Max(0.5f, planarDistance * 0.25f))
+                {
+                    return direction.x > 0f ? PatrolLookRight : PatrolLookLeft;
+                }
+            }
+
+            return idleDetailRandom.Next(2) == 0 ? PatrolLookLeft : PatrolLookRight;
+        }
+
+        private void UpdateWoundedPosture(bool goingToBreathing)
+        {
+            if (woundedPostureLayerIndex < 0)
+            {
+                return;
+            }
+
+            bool showWound = wounded.Value && goingToBreathing && stunNormalizedTimer <= 0f
+                && currentBehaviourStateIndex == (int)State.SearchingForPlayer && CheckIfInNotAnimation();
+            float targetWeight = showWound ? WoundedPostureWeight : 0f;
+            float fadeTime = showWound ? 0.3f : 0.1f;
+            float weight = Mathf.MoveTowards(creatureAnimator.GetLayerWeight(woundedPostureLayerIndex),
+                targetWeight, WoundedPostureWeight * Time.deltaTime / fadeTime);
+            creatureAnimator.SetLayerWeight(woundedPostureLayerIndex, weight);
+            if (AnimationPlaytestLogging && showWound != lastLoggedWoundedPosture)
+            {
+                lastLoggedWoundedPosture = showWound;
+                LogAnimation(showWound ? "Wounded posture fading in" : "Wounded posture fading out");
+            }
+        }
+
+        private void SetUpperBodyMotionWeight(float weight)
+        {
+            if (upperBodyGaitLayerIndex >= 0)
+            {
+                creatureAnimator.SetLayerWeight(upperBodyGaitLayerIndex, weight);
+            }
+
+            if (bodyTurnsLayerIndex >= 0)
+            {
+                creatureAnimator.SetLayerWeight(bodyTurnsLayerIndex, weight);
             }
         }
 
@@ -929,6 +1250,23 @@ namespace JPOGTrex {
         }
 
         //These methods are called during certain frames in the animation
+        private void OnEnemyBiteContact()
+        {
+            if (isEnemyDead)
+            {
+                return;
+            }
+
+            if (IsOwner)
+            {
+                EnemyAttack.HitAtContact();
+            }
+            else
+            {
+                LogAnimation("Enemy bite contact marker observed");
+            }
+        }
+
         private void PlayAudioClip(AudioClip audioClip)
         {
             creatureVoice.PlayOneShot(audioClip);
@@ -936,7 +1274,20 @@ namespace JPOGTrex {
         }
         private void PlayFootStepAudioClip(AudioClip audioClip)
         {
+            // The synced gait layers and blended clips can share a foot-contact marker.
+            float speed = creatureAnimator.GetFloat(MoveSpeedParameter);
+            if (isEnemyDead || speed < 0.35f || Time.time - lastFootstepTime < 0.16f)
+            {
+                return;
+            }
+
+            lastFootstepTime = Time.time;
             creatureSFX.PlayOneShot(audioClip);
+            if (AnimationPlaytestLogging && !loggedFootstepForMovement)
+            {
+                loggedFootstepForMovement = true;
+                LogAnimation($"Footstep audio played at speed {speed:F2}");
+            }
             WalkieTalkie.TransmitOneShotAudio(creatureSFX, audioClip);
             ShakeCamera();
         }
@@ -959,7 +1310,7 @@ namespace JPOGTrex {
             previousState = State.SpottedPlayer;
             LogIfDebugBuild("JPOGTrex: Sniffing");
             DoAnimationServerRpc("foundPlayer");
-            yield return new WaitForSeconds(1.3f);
+            yield return new WaitForSeconds(1.35f);
             LogIfDebugBuild("JPOGTrex: Sniffing finished");
             sniffing = false;
         }
@@ -970,8 +1321,8 @@ namespace JPOGTrex {
             previousState = State.SpottedPlayer;
             LogIfDebugBuild($"JPOGTrex: Roaring [{animationNumber}]");
             DoAnimationServerRpc("beginChase0" + animationNumber);
-            // Adjust wait time based on animationNumber
-            float waitTime = animationNumber == 3 ? 3.6f : 3.1f;
+            // The third roar plays at 0.8x speed in the controller.
+            float waitTime = animationNumber == 3 ? 4.6f : 3.2f;
             yield return new WaitForSeconds(waitTime);
             LogIfDebugBuild("JPOGTrex: Roaring finished");
             roaring = false;

@@ -14,6 +14,7 @@ namespace JPOGTrex.Configuration {
         public ConfigEntry<int> MaxSuspicionLevel;
         public ConfigEntry<int> SuspicionIncrement;
         public ConfigEntry<int> SuspicionDecrement;
+        internal readonly ConfigEntry<bool> AnimationPlaytestLogging;
 
         private const string CATEGORY_BEHAVIOR = "Behavior";
 
@@ -49,6 +50,9 @@ namespace JPOGTrex.Configuration {
                 "Time in seconds. The interval between decreasing suspicion.\n" +
                 "e.g. 4 means the suspicion will go down by the set amount every 4 seconds since the T-Rex last spotted a player moving.",
                 new AcceptableValueRange<float>(0.1f, 60f)));
+
+            AnimationPlaytestLogging = cfg.Bind("Debug", "AnimationPlaytestLogging", false,
+                "Log T-Rex animation state changes and playtest outcomes to the local BepInEx log.");
 
             ClearUnusedEntries(cfg);
         }
