@@ -12,7 +12,7 @@ namespace JPOGBuild
     /// Unity measures an additive clip against its own first frame unless it has a reference pose. The first frame of
     /// the gait clips is mid-stride, so the difference between that stride and the idle pose stayed on the legs:
     /// they ran with bent joints and the right foot and toes tilted up.
-    /// This builds a one-frame reference pose for each gait clip. The bones of the gait mask use the base layer's idle
+    /// This builds a one-frame reference pose for each moving gait clip. The bones of the gait mask use the base layer's idle
     /// pose, so on those bones the layer reproduces the authored walk and run. The other bones keep the clip's first frame,
     /// so the synced "Upper Body Gait" layer, which plays the same clips, stays as it is.
     /// Run it again after changing the gait clips, the idle clip or the model's default pose.
@@ -75,6 +75,25 @@ namespace JPOGBuild
         {
             string clipPath = AssetDatabase.GetAssetPath(clip);
             string refPath = Path.GetDirectoryName(clipPath).Replace('\\', '/') + "/" + clip.name + ReferenceSuffix + ".anim";
+            var settings = AnimationUtility.GetAnimationClipSettings(clip);
+
+            // A pose without motion (the standing pose of the blend tree) must add nothing on top of the base layer,
+            // otherwise its stride stays on the legs during idles, actions and the death animation.
+            // Measured against its own first frame, it adds nothing.
+            if (IsStatic(clip))
+            {
+                if (settings.hasAdditiveReferencePose)
+                {
+                    settings.hasAdditiveReferencePose = false;
+                    settings.additiveReferencePoseClip = null;
+                    AnimationUtility.SetAnimationClipSettings(clip, settings);
+                    EditorUtility.SetDirty(clip);
+                }
+                if (AssetDatabase.LoadAssetAtPath<AnimationClip>(refPath) != null) AssetDatabase.DeleteAsset(refPath);
+                Debug.Log("[JPOGTrex] " + clip.name + ": static pose, uses its own first frame as reference");
+                return;
+            }
+
             var reference = AssetDatabase.LoadAssetAtPath<AnimationClip>(refPath);
             if (reference == null)
             {
@@ -101,13 +120,22 @@ namespace JPOGBuild
             reference.EnsureQuaternionContinuity();
             EditorUtility.SetDirty(reference);
 
-            var settings = AnimationUtility.GetAnimationClipSettings(clip);
             settings.hasAdditiveReferencePose = true;
             settings.additiveReferencePoseClip = reference;
             settings.additiveReferencePoseTime = 0f;
             AnimationUtility.SetAnimationClipSettings(clip, settings);
             EditorUtility.SetDirty(clip);
             Debug.Log("[JPOGTrex] " + clip.name + ": reference pose " + refPath + " (" + fromIdle + " curves from the idle pose)");
+        }
+
+        static bool IsStatic(AnimationClip clip)
+        {
+            foreach (var binding in AnimationUtility.GetCurveBindings(clip))
+            {
+                var keys = AnimationUtility.GetEditorCurve(clip, binding).keys;
+                if (keys.Any(k => Mathf.Abs(k.value - keys[0].value) > 1e-4f)) return false;
+            }
+            return true;
         }
 
         static bool TryGetTransformValue(Transform bone, string property, out float value)
