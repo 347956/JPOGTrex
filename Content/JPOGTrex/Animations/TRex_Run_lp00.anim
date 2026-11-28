@@ -17908,14 +17908,14 @@ AnimationClip:
     pptrCurveMapping: []
   m_AnimationClipSettings:
     serializedVersion: 2
-    m_AdditiveReferencePoseClip: {fileID: 0}
+    m_AdditiveReferencePoseClip: {fileID: 7400000, guid: 738c239f29c3aedbc8c44c38297afb74, type: 2}
     m_AdditiveReferencePoseTime: 0
     m_StartTime: 0
     m_StopTime: 1.3333334
     m_OrientationOffsetY: 0
     m_Level: 0
     m_CycleOffset: 0
-    m_HasAdditiveReferencePose: 0
+    m_HasAdditiveReferencePose: 1
     m_LoopTime: 1
     m_LoopBlend: 0
     m_LoopBlendOrientation: 0
@@ -139457,14 +139457,14 @@ AnimationClip:
   m_Events:
   - time: 0
     functionName: PlayFootStepAudioClip
-    data:
+    data: 
     objectReferenceParameter: {fileID: 8300000, guid: 24666874100e3a946bbe9018e7d8d8ce, type: 3}
     floatParameter: 0
     intParameter: 0
     messageOptions: 0
   - time: 0.7
     functionName: PlayFootStepAudioClip
-    data:
+    data: 
     objectReferenceParameter: {fileID: 8300000, guid: 24666874100e3a946bbe9018e7d8d8ce, type: 3}
     floatParameter: 0
     intParameter: 0
